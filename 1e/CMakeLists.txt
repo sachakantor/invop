@@ -21,22 +21,21 @@ link_directories(${CPLEX_LIBRARY}
 # Targets
 set(SOURCE_FILES main.cpp problem.cpp)
 add_executable(1e ${SOURCE_FILES})
+add_executable(coordinates_to_distances coordinates_to_distances.cpp)
 
 # Because CLion can't detect .hpp who includes a .cpp (mimic for
 # separated declaration and implementation for template classes),
 # I put implementation in .hpp and link it as a library
-add_library(lp INTERFACE)
-target_sources(lp INTERFACE
-							 "${INCLUDE_DIR}/problem.hpp")
-#							 "${INCLUDE_DIR}/lp_mtvrptw.hpp")
+add_library(coordinates INTERFACE)
+target_sources(coordinates INTERFACE
+							 "${INCLUDE_DIR}/coordinates.hpp"
+							 "${CMAKE_CURRENT_SOURCE_DIR}/coordinates.cpp")
+target_link_libraries(coordinates_to_distances coordinates)
 
+add_library(lp INTERFACE)
+target_sources(lp INTERFACE "${INCLUDE_DIR}/problem.hpp")
 target_link_libraries(1e
 											lp
-											#labeling
-											#nlohmann_json
-											#graph
-											#extra_containers
-											#std_containers_operators
 											${CMAKE_THREAD_LIBS_INIT}
 											${CMAKE_DL_LIBS}
 											c
