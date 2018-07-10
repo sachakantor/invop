@@ -19,19 +19,19 @@ link_directories(${CPLEX_LIBRARY}
 								 ${CPLEX_ILOCPLEX_LIBRARY})
 
 # Targets
-set(SOURCE_FILES main.cpp)
+set(SOURCE_FILES main.cpp problem.cpp)
 add_executable(1e ${SOURCE_FILES})
 
 # Because CLion can't detect .hpp who includes a .cpp (mimic for
 # separated declaration and implementation for template classes),
 # I put implementation in .hpp and link it as a library
-#add_library(lp_mtvrptw INTERFACE)
-#target_sources(lp_mtvrptw INTERFACE
-#							 "${INCLUDE_DIR}/problem.hpp"
+add_library(lp INTERFACE)
+target_sources(lp INTERFACE
+							 "${INCLUDE_DIR}/problem.hpp")
 #							 "${INCLUDE_DIR}/lp_mtvrptw.hpp")
 
 target_link_libraries(1e
-											#lp_mtvrptw
+											lp
 											#labeling
 											#nlohmann_json
 											#graph
