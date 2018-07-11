@@ -25,6 +25,6 @@ void free_structures(CPXENVptr env, CPXLPptr lp);
 int set_parameters(CPXENVptr env);
 int edge_var_number(const Problem* prob, int schedule, int from, int to);
 int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp);
-int solve(Problem* prob);
+double solve(Problem* prob, std::vector<std::vector<int>>& schedules);
 
 #endif //INVOP_PROBLEM_HPP

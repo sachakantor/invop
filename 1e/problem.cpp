@@ -221,7 +221,7 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 	CPXXchgobjsen(env, lp, CPX_MIN);
 	int status;
 
-	std::cout << "Definiendo columnas/variables" << std::endl;
+	std::cout << "-> Defining columns/variables" << std::endl;
 	//Model's variables definition
 	int var_number = prob->schedules * prob->N * (prob->N-1); //complete directed graph, for prob->schedules schedules
 	auto* obj_var_coefs = new double[var_number];
@@ -249,9 +249,8 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 	status = CPXXnewcols(env, lp, var_number, obj_var_coefs, lower_bounds, upper_bounds, column_types, nullptr);
 	if(status) return (-1);
 
-	std::cout << "Agregando restricciones" << std::endl;
-
 	//Model's restrictions
+	std::cout << "-> Adding restrictions" << std::endl;
 	auto* rhs = new double[1];
 	auto* sense = new char[1];
 	auto* rmatbeg = new CPXNNZ[1];
@@ -259,7 +258,7 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 	auto* rmatind2 = new int[var_number];
 	auto* rmatval = new double[var_number];
 
-	std::cout << "-> Cada cliente que debe ser visitado todos los dias lo es." << std::endl;
+	std::cout << "--> Every day farm is visited every day" << std::endl;
 	//Every day client is visited exactly one time in each schedule
 	// Sum_i ek_ij = 1, where k is the schedule number
 	// Sum_i ek_ji = 1
@@ -290,7 +289,7 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 		}
 	}
 
-	std::cout << "-> Cada cliente que debe ser visitado UN día, lo es." << std::endl;
+	std::cout << "--> Every other day farm is visited in only of the two day schedules" << std::endl;
 	//Every other day client is visited exactly one time in only one schedule
 	// Sum_i e1_ij + e2_ij = 1
 	// Sum_i e1_ji + e2_ji = 1
@@ -320,7 +319,7 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 		if(status) return (-1);
 	}
 
-	std::cout << "--> Se entra y sale el mismo día" << std::endl;
+	std::cout << "---> Same schedule day arrival and departure for every other day farm" << std::endl;
 	// Sum_i e1_ij - Sum_i e1_ji = 0
 	rmatbeg[0] = 0; //Just one restriction
 	rhs[0] = 0.;
@@ -347,7 +346,7 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 		}
 	}
 
-	std::cout << "-> Capacidad del vehículo" << std::endl;
+	std::cout << "--> Vehicle capacity is not violated" << std::endl;
 	//Vehicle capacity constraint
 	// Sum_i,j ek_ij dj <= 80, where k = schedule number
 	rmatbeg[0] = 0; //Just one restriction
@@ -372,7 +371,7 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 		if(status) return (-1);
 	}
 
-	std::cout << "-> Deposito está en todos los schedules" << std::endl;
+	std::cout << "--> The deposit is part of every schedule" << std::endl;
 	//Depot belongs to each schedule
 	// Sum_j ek_1j = 1, where k = schedule number
 	// Sum_j ek_j1 = 1
@@ -395,7 +394,7 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 		if(status) return (-1);
 	}
 
-	std::cout << "-> Fin restricciones" << std::endl;
+	std::cout << "--> No more restrictions" << std::endl;
 	// Este sector de codigo permite proveerle a CPLEX una solucion factible de entrada
 	/*status = CPXsetintparam(env, CPX_PARAM_ADVIND, 1);
 	if(status)exit(-1);
@@ -436,7 +435,7 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 	return 0;
 }
 
-int solve(Problem* prob)
+double solve(Problem* prob, std::vector<std::vector<int>>& schedules)
 {
 	// CPlex environment
 	int status = 0;
@@ -459,8 +458,7 @@ int solve(Problem* prob)
 		return status;
 	}
 
-	std::cout << "Inicializando MIP" << std::endl;
-
+	std::cout << "Initializing MIP" << std::endl;
 	status = initialize_mip(prob, env, lp);
 	if(status)
 	{
@@ -476,41 +474,40 @@ int solve(Problem* prob)
 		return status;
 	}*/
 
-	std::cout << "Resolver" << std::endl;
-	// Variables para traer los resultados
-	double objval;
-	//double* y = nullptr;
-
 	//Solve MIP
+	std::cout << "Solving" << std::endl;
 	status = CPXXmipopt(env,lp);
 	if(status) return(-1);
 
+	//Retrieve optimal solution
+	double objval;
+	//double* y = nullptr;
 	status = CPXXgetobjval (env, lp, &objval); // Get optimum objective function value
 	if(status) return(-1);
 
-	// Pido memoria para traer la solucion
 	//int cur_numrows = CPXXgetnumrows(env,lp);
-	//int cur_numcols = CPXXgetnumcols(env,lp);
-
-	//double* x = new double[cur_numcols];
-
-	/*// Pedimos los valores de las variables en la solucion
-	status = CPXXgetx (env, lp, x, 0, cur_numcols-1);
+	int cur_numcols = CPXXgetnumcols(env,lp);
+	auto* vars = new double[cur_numcols];
+	status = CPXXgetx (env, lp, vars, 0, cur_numcols-1); // Pedimos los valores de las variables en la solucion
 	if(status) return(-1);
 
-	// Armamos la asignacion de colores en nuestra estructura con la informacion que nos trajimos de CPLEX
-	if(prob->bestObj>=objval){
-		for(int i=0; i<prob->N; ++i){
-			for(int j=0; j<prob->bestObj; ++j){
-				if(x[i*prob->bestObj+j]>0.001){
-					prob->colores[i]=j;
-				}
-			}
-		}
-		prob->bestObj = objval;
-	}*/
+	//Armamos el orden de cada schedule respecto de la nomeclatura de las variables
+	schedules.clear();
+	for(int day = 0; day < prob->schedules; ++day)
+	{
+		schedules.emplace_back();
+		int cur_farm = 0;
+		do
+		{
+			schedules[day].push_back(cur_farm);
+			int j = 0; while(j == cur_farm || vars[edge_var_number(prob, day, cur_farm, j)] != 1.0) ++j;
+			cur_farm = j;
+		} while(cur_farm != 0);
+		schedules[day].push_back(cur_farm);
+	}
 
+	delete[] vars;
 	free_structures(env, lp);
 
-	return status;
+	return objval;
 }
