@@ -1,3 +1,4 @@
+#include<cassert>
 #include<iostream>
 #include<vector>
 
@@ -6,13 +7,15 @@
 
 Problem::Problem() = default;
 
+Problem::Problem(int n) : costs(n, std::vector<double>(n,0.0)), demands(n,0.0) {}
+
 int initialize_structures(CPXENVptr& env, CPXLPptr& lp)
 {
 
 	int status = 0;
 	env = CPXXopenCPLEX(&status);
 
-	std::cout<<env<<" "<<status<<std::endl;
+	//std::cout<<env<<" "<<status<<std::endl;
 	if(env == nullptr)
 	{
 		char errmsg[CPXMESSAGEBUFSIZE];
@@ -203,7 +206,13 @@ int set_parameters(CPXENVptr env)
 
 int edge_var_number(const Problem* prob, int schedule, int from, int to)
 {
-	return schedule*prob->N*(prob->N-1)+prob->N*from+to;
+	assert(from != to);
+	//This is a picewise function that maps the edge from 'from' to 'to', taking into consideration
+	//that the graph doesn't have loop edges.
+	int edge_number = schedule*prob->N*(prob->N-1) + (prob->N-1)*from + to; //schedule_offset + row_offset + col_offset
+	if(to > from) edge_number--; //take into consideration loop edges not labeled/numbered.
+
+	return edge_number;
 }
 
 int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
@@ -212,10 +221,9 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 	CPXXchgobjsen(env, lp, CPX_MIN);
 	int status;
 
+	std::cout << "Definiendo columnas/variables" << std::endl;
 	//Model's variables definition
-	int var_number = prob->schedules
-									 *prob->N
-									 *(prob->N-1); //complete directed graph, for prob->schedules schedules
+	int var_number = prob->schedules * prob->N * (prob->N-1); //complete directed graph, for prob->schedules schedules
 	auto* obj_var_coefs = new double[var_number];
 	auto* lower_bounds = new double[var_number];
 	auto* upper_bounds = new double[var_number];
@@ -223,14 +231,17 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 
 	for(int i = 0; i < prob->N; ++i)
 	{
-		for(int j = 0; i < prob->N; ++i)
+		for(int j = 0; j < prob->N; ++j)
 		{
-			for(int day = 0; day < prob->schedules; ++day)
+			if(i != j)
 			{
-				obj_var_coefs[edge_var_number(prob, day, i, j)] = prob->costs[i][j];
-				lower_bounds[edge_var_number(prob, day, i, j)] = 0.;
-				upper_bounds[edge_var_number(prob, day, i, j)] = 1.;
-				column_types[edge_var_number(prob, day, i, j)] = 'B';
+				for(int day = 0; day < prob->schedules; ++day)
+				{
+					obj_var_coefs[edge_var_number(prob, day, i, j)] = prob->costs[i][j];
+					lower_bounds[edge_var_number(prob, day, i, j)] = 0.0;
+					upper_bounds[edge_var_number(prob, day, i, j)] = 1.0;
+					column_types[edge_var_number(prob, day, i, j)] = 'B';
+				}
 			}
 		}
 	}
@@ -238,6 +249,7 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 	status = CPXXnewcols(env, lp, var_number, obj_var_coefs, lower_bounds, upper_bounds, column_types, nullptr);
 	if(status) return (-1);
 
+	std::cout << "Agregando restricciones" << std::endl;
 
 	//Model's restrictions
 	auto* rhs = new double[1];
@@ -247,79 +259,95 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 	auto* rmatind2 = new int[var_number];
 	auto* rmatval = new double[var_number];
 
+	std::cout << "-> Cada cliente que debe ser visitado todos los dias lo es." << std::endl;
 	//Every day client is visited exactly one time in each schedule
 	// Sum_i ek_ij = 1, where k is the schedule number
 	// Sum_i ek_ji = 1
 	rmatbeg[0] = 0; //Just one restriction
-	rhs[0] = 1.;
+	rhs[0] = 1.0;
 	sense[0] = 'E';
-	for(int j = 1; j <= prob->every_day; ++j)
+	for(int j = prob->depots; j < prob->depots + prob->every_day; ++j)
 	{
 		for(int day = 0; day < prob->schedules; ++day)
 		{
-			for(int i = 0; i < prob->N; ++i)
+			for(int i = 0, k = 0; i < prob->N; ++i)
 			{
-				rmatval[i] = 1.0; //Variable coef
-				rmatind[i] = edge_var_number(prob, day, i, j); //Variable number
-				rmatind2[i] = edge_var_number(prob, day, j, i); //Variable number
+				if(i != j)
+				{
+					rmatval[k] = 1.0; //Variable coef
+					rmatind[k] = edge_var_number(prob, day, i, j); //Variable number
+					rmatind2[k] = edge_var_number(prob, day, j, i); //Variable number
+					k++;
+				}
 			}
 
 			//Add restrictions one by one
-			status = CPXXaddrows(env, lp, 0, 1, prob->N, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
+			status = CPXXaddrows(env, lp, 0, 1, prob->N-1, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
 			if(status) return (-1);
 
-			status = CPXXaddrows(env, lp, 0, 1, prob->N, rhs, sense, rmatbeg, rmatind2, rmatval, nullptr, nullptr);
+			status = CPXXaddrows(env, lp, 0, 1, prob->N-1, rhs, sense, rmatbeg, rmatind2, rmatval, nullptr, nullptr);
 			if(status) return (-1);
 		}
 	}
 
+	std::cout << "-> Cada cliente que debe ser visitado UN día, lo es." << std::endl;
 	//Every other day client is visited exactly one time in only one schedule
 	// Sum_i e1_ij + e2_ij = 1
 	// Sum_i e1_ji + e2_ji = 1
 	rmatbeg[0] = 0; //Just one restriction
-	rhs[0] = 1.;
+	rhs[0] = 1.0;
 	sense[0] = 'E';
-	for(int j = prob->every_day+1; j < prob->N; ++j)
+	for(int j = prob->depots+prob->every_day; j < prob->N; ++j)
 	{
-		for(int day = 0; day < prob->schedules; ++day)
+		for(int day = 0, k = 0; day < prob->schedules; ++day)
 		{
 			for(int i = 0; i < prob->N; ++i)
 			{
-				rmatval[day*prob->N+i] = 1.0; //Variable coef
-				rmatind[day*prob->N+i] = edge_var_number(prob, day, i, j); //Variable number
-				rmatind2[day*prob->N+i] = edge_var_number(prob, day, j, i); //Variable number
+				if(i != j)
+				{
+					rmatval[k] = 1.0; //Variable coef
+					rmatind[k] = edge_var_number(prob, day, i, j); //Variable number
+					rmatind2[k] = edge_var_number(prob, day, j, i); //Variable number
+					k++;
+				}
 			}
 		}
 		//Add restrictions one by one
-		status = CPXXaddrows(env, lp, 0, 1, prob->schedules*prob->N, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
+		status = CPXXaddrows(env, lp, 0, 1, prob->schedules*(prob->N-1), rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
 		if(status) return (-1);
 
-		status = CPXXaddrows(env, lp, 0, 1, prob->schedules*prob->N, rhs, sense, rmatbeg, rmatind2, rmatval, nullptr, nullptr);
+		status = CPXXaddrows(env, lp, 0, 1, prob->schedules*(prob->N-1), rhs, sense, rmatbeg, rmatind2, rmatval, nullptr, nullptr);
 		if(status) return (-1);
 	}
 
+	std::cout << "--> Se entra y sale el mismo día" << std::endl;
 	// Sum_i e1_ij - Sum_i e1_ji = 0
 	rmatbeg[0] = 0; //Just one restriction
 	rhs[0] = 0.;
 	sense[0] = 'E';
-	for(int j = prob->every_day+1; j < prob->N; ++j)
+	for(int j = prob->depots+prob->every_day; j < prob->N; ++j)
 	{
 		for(int day = 0; day < prob->schedules; ++day)
 		{
-			for(int i = 0; i < prob->N*2; i += 2)
+			for(int i = 0, k = 0; i < prob->N; ++i)
 			{
-				rmatval[i] = 1.0; //Variable coef
-				rmatind[i] = edge_var_number(prob, day, i, j); //Variable number
+				if(i != j)
+				{
+					rmatval[k] = 1.0; //Variable coef
+					rmatind[k] = edge_var_number(prob, day, i, j); //Variable number
 
-				rmatval[i+1] = -1.0; //Variable coef
-				rmatind[i+1] = edge_var_number(prob, day, j, i); //Variable number
+					rmatval[k+1] = -1.0; //Variable coef
+					rmatind[k+1] = edge_var_number(prob, day, j, i); //Variable number
+					k+=2;
+				}
 			}
 			//Add restrictions one by one
-			status = CPXXaddrows(env, lp, 0, 1, prob->N*2, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
+			status = CPXXaddrows(env, lp, 0, 1, (prob->N-1)*2, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
 			if(status) return (-1);
 		}
 	}
 
+	std::cout << "-> Capacidad del vehículo" << std::endl;
 	//Vehicle capacity constraint
 	// Sum_i,j ek_ij dj <= 80, where k = schedule number
 	rmatbeg[0] = 0; //Just one restriction
@@ -327,41 +355,47 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 	sense[0] = 'L';
 	for(int day = 0; day < prob->schedules; ++day)
 	{
-		for(int j = 0; j < prob->N; ++j)
+		for(int i = 0, k = 0; i < prob->N; ++i)
 		{
-			for(int i = 0; i < prob->N; ++i)
+			for(int j = 0; j < prob->N; ++j)
 			{
-				rmatval[j*prob->N+i] = prob->demands[j]; //Variable coef
-				rmatind[j*prob->N+i] = edge_var_number(prob, day, i, j); //Variable number
+				if(i != j)
+				{
+					rmatval[k] = prob->demands[j]; //Variable coef
+					rmatind[k] = edge_var_number(prob, day, i, j); //Variable number
+					k++;
+				}
 			}
 		}
 		//Add restrictions one by one
-		status = CPXXaddrows(env, lp, 0, 1, prob->N*prob->N, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
+		status = CPXXaddrows(env, lp, 0, 1, prob->N*(prob->N-1), rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
 		if(status) return (-1);
 	}
 
+	std::cout << "-> Deposito está en todos los schedules" << std::endl;
 	//Depot belongs to each schedule
 	// Sum_j ek_1j = 1, where k = schedule number
 	// Sum_j ek_j1 = 1
 	rmatbeg[0] = 0; //Just one restriction
-	rhs[0] = 1.;
+	rhs[0] = 1.0;
 	sense[0] = 'E';
 	for(int day = 0; day < prob->schedules; ++day)
 	{
-		for(int j = 0; j < prob->N; ++j)
+		for(int j = 1; j < prob->N; ++j)
 		{
-			rmatval[j] = 1.0;
-			rmatind[j] = edge_var_number(prob, day, 1, j);
-			rmatind2[j] = edge_var_number(prob, day, j, 2);
+			rmatval[j-1] = 1.0;
+			rmatind[j-1] = edge_var_number(prob, day, 0, j);
+			rmatind2[j-1] = edge_var_number(prob, day, j, 0);
 		}
 		//Add restrictions one by one
-		status = CPXXaddrows(env, lp, 0, 1, prob->N, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
+		status = CPXXaddrows(env, lp, 0, 1, prob->N-1, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
 		if(status) return (-1);
 
-		status = CPXXaddrows(env, lp, 0, 1, prob->N, rhs, sense, rmatbeg, rmatind2, rmatval, nullptr, nullptr);
+		status = CPXXaddrows(env, lp, 0, 1, prob->N-1, rhs, sense, rmatbeg, rmatind2, rmatval, nullptr, nullptr);
 		if(status) return (-1);
 	}
 
+	std::cout << "-> Fin restricciones" << std::endl;
 	// Este sector de codigo permite proveerle a CPLEX una solucion factible de entrada
 	/*status = CPXsetintparam(env, CPX_PARAM_ADVIND, 1);
 	if(status)exit(-1);
@@ -425,6 +459,8 @@ int solve(Problem* prob)
 		return status;
 	}
 
+	std::cout << "Inicializando MIP" << std::endl;
+
 	status = initialize_mip(prob, env, lp);
 	if(status)
 	{
@@ -440,6 +476,7 @@ int solve(Problem* prob)
 		return status;
 	}*/
 
+	std::cout << "Resolver" << std::endl;
 	// Variables para traer los resultados
 	double objval;
 	//double* y = nullptr;

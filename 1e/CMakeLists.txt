@@ -19,7 +19,7 @@ link_directories(${CPLEX_LIBRARY}
 								 ${CPLEX_ILOCPLEX_LIBRARY})
 
 # Targets
-set(SOURCE_FILES main.cpp problem.cpp)
+set(SOURCE_FILES main.cpp)
 add_executable(1e ${SOURCE_FILES})
 add_executable(coordinates_to_distances coordinates_to_distances.cpp)
 
@@ -33,7 +33,9 @@ target_sources(coordinates INTERFACE
 target_link_libraries(coordinates_to_distances coordinates)
 
 add_library(lp INTERFACE)
-target_sources(lp INTERFACE "${INCLUDE_DIR}/problem.hpp")
+target_sources(lp INTERFACE
+							 "${INCLUDE_DIR}/problem.hpp"
+							 "${CMAKE_CURRENT_SOURCE_DIR}/problem.cpp")
 target_link_libraries(1e
 											lp
 											${CMAKE_THREAD_LIBS_INIT}

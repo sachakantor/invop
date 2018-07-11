@@ -9,13 +9,15 @@
 struct Problem
 {
 	int N;  				//number of clients (including depot)
-	int K;  				//vehicle capacity
+	double K;  				//vehicle capacity
 	int schedules;	//number of schedules
-	int every_day;	//max client number who must be visited every day
-	std::vector<std::vector<int>> costs;
-	std::vector<int> demands;
+	int depots;			//number of depots
+	int every_day;	//number of clients who must be visited every day
+	std::vector<std::vector<double>> costs;
+	std::vector<double> demands;
 
 	Problem();
+	explicit Problem(int n);
 };
 
 int initialize_structures(CPXENVptr& env, CPXLPptr& lp);

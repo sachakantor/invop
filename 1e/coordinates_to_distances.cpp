@@ -29,11 +29,11 @@ int main(int argc, char* argv[])
 	};
 
 	//Read input
-	int n, depots, every_day;
+	int n, depots, every_day, capacity;
 	std::vector<coordinate> coordinates;
 	std::vector<double> demands;
 
-	input_file >> n >> depots >> every_day;
+	input_file >> n >> depots >> every_day >> capacity;
 
 	for(int i = 0; i < depots; ++i)
 	{
@@ -63,7 +63,7 @@ int main(int argc, char* argv[])
 	}
 
 	//save output
-	output_file << n << " " << depots << " " << every_day << std::endl;
+	output_file << n << " " << depots << " " << every_day << " " << capacity << std::endl;
 	output_file << demands[depots];
 	for(int i=depots+1; i<n; ++i)
 		output_file << " " << demands[i];
