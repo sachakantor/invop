@@ -266,10 +266,13 @@ int every_other_day_var_number(const Problem* prob, int schedule, int node)
 	//std::vector<int> visited_among_subtours(lazyconinfo->prob->schedules,0);
 	for(int day = 0; day < lazyconinfo->prob->schedules; ++day)
 	{
-		int visited_all_subtours = 0;
-		for(int i = 0; i < lazyconinfo->prob->N; ++i)
+		int visited_all_subtours = lazyconinfo->prob->every_day;
+		for(int i = lazyconinfo->prob->depots+lazyconinfo->prob->every_day; i < lazyconinfo->prob->N; ++i)
 		{
-			if
+			if(every_other_day_var_number(lazyconinfo->prob, day, i) == 1.0)
+			{
+				visited_all_subtours++;
+			}
 		}
 
 		int visited_depot_subtour;
@@ -290,7 +293,7 @@ int every_other_day_var_number(const Problem* prob, int schedule, int node)
 		return (-1);
 
 	} else {
-		*//* Tell CPLEX that cuts have been created *//*
+		 //Tell CPLEX that cuts have been created
 		*useraction_p = CPX_CALLBACK_SET;
 	}
 
@@ -665,6 +668,17 @@ double solve(Problem* prob, std::vector<std::vector<int>>& schedules)
 	if(status) return(-1);
 
 	//Armamos el orden de cada schedule respecto de la nomeclatura de las variables
+	for(int day = 0; day < prob->schedules; ++day)
+	{
+		for(int i = 0; i < prob->N; ++i)
+			for(int j = 0; j < prob->N; ++j)
+				if(i != j && vars[edge_var_number(prob, day, i, j)] == 1.0) std::cout << i << "->" << j << std::endl;
+
+		std::cout << std::endl;
+	}
+
+
+
 	schedules.clear();
 	for(int day = 0; day < prob->schedules; ++day)
 	{

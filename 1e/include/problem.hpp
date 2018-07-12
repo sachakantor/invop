@@ -27,9 +27,9 @@ struct Problem
 	Problem* prob;
 
 	lazy_constrain_info(CPXLPptr lp, Problem* prob);
-};*/
+};
 
-//static int CPXPUBLIC subtour_constraint_generator(CPXCENVptr env, void* cbdata, int wherefrom, void* cbhandle, int* useraction_p);
+static int CPXPUBLIC subtour_constraint_generator(CPXCENVptr env, void* cbdata, int wherefrom, void* cbhandle, int* useraction_p);*/
 
 int initialize_structures(CPXENVptr& env, CPXLPptr& lp);
 void free_structures(CPXENVptr env, CPXLPptr lp);
