@@ -235,11 +235,11 @@ int edge_var_number(const Problem* prob, int schedule, int from, int to)
 	return edge_number;
 }
 
-int every_other_day_var_number(const Problem* prob, int schedule, int node)
+int vertex_var_number(const Problem* prob, int schedule, int vertex)
 {
 	assert(0 <= schedule && schedule < prob->schedules);
-	assert(node >= prob->depots+prob->every_day); //TODO: ojo con los casos bordes de los offsets aca
-	return prob->schedules*prob->N*(prob->N-1) + prob->every_other_day*schedule + (node - prob->depots - prob->every_day); //edge_vars + schedule_offset + farm_node - (depots+every_day)
+	assert(0 <= vertex && vertex < prob->N);
+	return prob->schedules*prob->N*(prob->N-1) + schedule*prob->N + vertex; //edge_vars_offset + row_offset + col_offset
 }
 
 /*static int CPXPUBLIC subtour_constraint_generator(CPXCENVptr env, void* cbdata, int wherefrom, void* cbhandle, int* useraction_p)
@@ -269,7 +269,7 @@ int every_other_day_var_number(const Problem* prob, int schedule, int node)
 		int visited_all_subtours = lazyconinfo->prob->every_day;
 		for(int i = lazyconinfo->prob->depots+lazyconinfo->prob->every_day; i < lazyconinfo->prob->N; ++i)
 		{
-			if(every_other_day_var_number(lazyconinfo->prob, day, i) == 1.0)
+			if(vertex_var_number(lazyconinfo->prob, day, i) == 1.0)
 			{
 				visited_all_subtours++;
 			}
@@ -310,8 +310,8 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 	std::cout << "-> Defining columns/variables" << std::endl;
 
 	int edge_vars_quantity = prob->schedules * prob->N * (prob->N-1); //complete directed graph, for prob->schedules schedules
-	int every_other_day_vars_quantity = prob->schedules * prob->every_other_day;
-	int vars_quantity = edge_vars_quantity + every_other_day_vars_quantity;
+	int vertex_vars_quantity = prob->schedules * prob->N;
+	int vars_quantity = edge_vars_quantity + vertex_vars_quantity;
 
 	auto* obj_var_coefs = new double[vars_quantity];
 	auto* lower_bounds = new double[vars_quantity];
@@ -319,9 +319,9 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 	auto* column_types = new char[vars_quantity];
 
 	int def_vars = 0;
-	for(int i = 0; i < prob->N; ++i)
+	for(int day = 0; day < prob->schedules; ++day)
 	{
-		for(int day = 0; day < prob->schedules; ++day)
+		for(int i = 0; i < prob->N; ++i)
 		{
 			for(int j = 0; j < prob->N; ++j)
 			{
@@ -335,20 +335,22 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 				}
 			}
 
-			if(i >= prob->depots+prob->every_day)
-			{
-				obj_var_coefs[every_other_day_var_number(prob, day, i)] = 0.0;
-				lower_bounds[every_other_day_var_number(prob, day, i)] = 0.0;
-				upper_bounds[every_other_day_var_number(prob, day, i)] = 1.0;
-				column_types[every_other_day_var_number(prob, day, i)] = 'B';
-				def_vars++;
-			}
+			obj_var_coefs[vertex_var_number(prob, day, i)] = 0.0;
+			lower_bounds[vertex_var_number(prob, day, i)] = 0.0;
+			upper_bounds[vertex_var_number(prob, day, i)] = 1.0;
+			column_types[vertex_var_number(prob, day, i)] = 'B';
+			def_vars++;
 		}
 	}
 
+	//Add variables defs/cols to lp
 	assert(def_vars == vars_quantity);
 	status = CPXXnewcols(env, lp, vars_quantity, obj_var_coefs, lower_bounds, upper_bounds, column_types, nullptr);
-	if(status) return (-1);
+	if(status)
+	{
+		std::cerr << "Variable definitions/Columns could not be defined. CPLEX Error " << status << std::endl;
+		return (-1);
+	}
 
 	//Model's restrictions
 	std::cout << "-> Adding restrictions" << std::endl;
@@ -360,209 +362,108 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 	auto* rmatval = new double[vars_quantity];
 
 	//Every day client is visited exactly one time in each schedule
-	// Sum_i ek_ij = 1, where k is the schedule number
-	// Sum_i ek_ji = 1
-	std::cout << "--> Every day farm is visited every day" << std::endl;
+	// Sum_k(u_ik) = prob->schedules  (for all i in every_day_clients)
+	// Sum_k(u_ik) = prob->cust_clients_freq  (for all i in cust_clients)
+	std::cout	<< "--> Every day clients are visited every day, the rest is visited "
+						<< prob->cust_clients_freq << " times in " << prob->schedules << " days." << std::endl;
 	rmatbeg[0] = 0; //Just one restriction
-	rhs[0] = 1.0;
 	sense[0] = 'E';
-	for(int j = prob->depots; j < prob->depots + prob->every_day; ++j)
+	rhs[0] = static_cast<double>(prob->schedules);
+	for(int i = 0; i < prob->N; ++i)
 	{
+		int def_vars = 0;
 		for(int day = 0; day < prob->schedules; ++day)
 		{
-			for(int i = 0, k = 0; i < prob->N; ++i)
-			{
-				if(i != j)
-				{
-					rmatval[k] = 1.0; //Variable coef
-					rmatind[k] = edge_var_number(prob, day, i, j); //Variable number
-					rmatind2[k] = edge_var_number(prob, day, j, i); //Variable number
-					k++;
-				}
-			}
-
-			//Add restrictions one by one
-			status = CPXXaddrows(env, lp, 0, 1, prob->N-1, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
-			if(status) return (-1);
-
-			status = CPXXaddrows(env, lp, 0, 1, prob->N-1, rhs, sense, rmatbeg, rmatind2, rmatval, nullptr, nullptr);
-			if(status) return (-1);
+			rmatval[day] = 1.0; //Variable coef
+			rmatind[day] = vertex_var_number(prob, day, i); //Variable number
+			def_vars++;
 		}
+
+		if(i == prob->depots + prob->every_day) rhs[0] = static_cast<double>(prob->cust_clients_freq);
+
+		//Add restrictions one by one
+		assert(def_vars == prob->schedules);
+		status = CPXXaddrows(env, lp, 0, 1, def_vars, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
+		if(status) return (-1);
 	}
 
-	//Every other day client is visited exactly one time in only one schedule
-	// Sum_i e1_ij + e2_ij = 1
-	// Sum_i e1_ji + e2_ji = 1
-	std::cout << "--> Every other day farm is visited in only of the two day schedules" << std::endl;
+	//Only for each day a client is visited, vehicle arrives and leaves exactly one time.
+	// Sum_i(e_ijk) = u_jk  (forall k=1..prob->schedules, forall j in V).
+	// Sum_i(e_jik) = u_jk  (forall k=1..prob->schedules, forall j in V).
+	std::cout << "--> Same schedule day arrival and departure for every selected day of each client" << std::endl;
 	rmatbeg[0] = 0; //Just one restriction
-	rhs[0] = 1.0;
+	rhs[0] = 0.0;
 	sense[0] = 'E';
-	for(int j = prob->depots+prob->every_day; j < prob->N; ++j)
+	for(int day = 0; day < prob->schedules; ++day)
 	{
-		for(int day = 0, k = 0; day < prob->schedules; ++day)
+		for(int j = 0; j < prob->N; ++j)
 		{
+			rmatval[0] = -1.0;
+			rmatind[0] = vertex_var_number(prob, day, j);
+			rmatind2[0] = vertex_var_number(prob, day, j);
+
+			int def_vars = 1;
 			for(int i = 0; i < prob->N; ++i)
 			{
 				if(i != j)
 				{
-					rmatval[k] = 1.0; //Variable coef
-					rmatind[k] = edge_var_number(prob, day, i, j); //Variable number
-					rmatind2[k] = edge_var_number(prob, day, j, i); //Variable number
-					k++;
-				}
-			}
-		}
-		//Add restrictions one by one
-		status = CPXXaddrows(env, lp, 0, 1, prob->schedules*(prob->N-1), rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
-		if(status) return (-1);
-
-		status = CPXXaddrows(env, lp, 0, 1, prob->schedules*(prob->N-1), rhs, sense, rmatbeg, rmatind2, rmatval, nullptr, nullptr);
-		if(status) return (-1);
-	}
-
-	// Sum_i e1_ij - Sum_i e1_ji = 0
-	std::cout << "---> Same schedule day arrival and departure for every other day farm" << std::endl;
-	rmatbeg[0] = 0; //Just one restriction
-	rhs[0] = 0.;
-	sense[0] = 'E';
-	for(int j = prob->depots+prob->every_day; j < prob->N; ++j)
-	{
-		for(int day = 0; day < prob->schedules; ++day)
-		{
-			for(int i = 0, k = 0; i < prob->N; ++i)
-			{
-				if(i != j)
-				{
-					rmatval[k] = 1.0; //Variable coef
-					rmatind[k] = edge_var_number(prob, day, i, j); //Variable number
-
-					rmatval[k+1] = -1.0; //Variable coef
-					rmatind[k+1] = edge_var_number(prob, day, j, i); //Variable number
-					k+=2;
+					rmatval[def_vars] = 1.0; //Variable coef
+					rmatind[def_vars] = edge_var_number(prob, day, i, j); //Variable number
+					rmatind2[def_vars] = edge_var_number(prob, day, j, i); //Variable number
+					def_vars++;
 				}
 			}
 			//Add restrictions one by one
-			status = CPXXaddrows(env, lp, 0, 1, (prob->N-1)*2, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
-			if(status) return (-1);
+			assert(def_vars == prob->N-1 + 1);
+			status = CPXXaddrows(env, lp, 0, 1, def_vars, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
+			if(status)
+			{
+				std::cerr << "Row/Constraint could not be added. CPLEX error " << status << std::endl;
+				return (-1);
+			}
+
+			status = CPXXaddrows(env, lp, 0, 1, def_vars, rhs, sense, rmatbeg, rmatind2, rmatval, nullptr, nullptr);
+			if(status)
+			{
+				std::cerr << "Row/Constraint could not be added. CPLEX error " << status << std::endl;
+				return (-1);
+			}
 		}
 	}
 
 	//Vehicle capacity constraint
-	// Sum_i,j ek_ij dj <= 80, where k = schedule number
+	// Sum_ij e_ijk dj <= Capacity (forall k=1..prob->schedules)
 	std::cout << "--> Vehicle capacity is not violated" << std::endl;
 	rmatbeg[0] = 0; //Just one restriction
-	rhs[0] = 80.;
+	rhs[0] = prob->K;
 	sense[0] = 'L';
 	for(int day = 0; day < prob->schedules; ++day)
 	{
-		for(int i = 0, k = 0; i < prob->N; ++i)
-		{
-			for(int j = 0; j < prob->N; ++j)
-			{
-				if(i != j)
-				{
-					rmatval[k] = prob->demands[j]; //Variable coef
-					rmatind[k] = edge_var_number(prob, day, i, j); //Variable number
-					k++;
-				}
-			}
-		}
-		//Add restrictions one by one
-		status = CPXXaddrows(env, lp, 0, 1, prob->N*(prob->N-1), rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
-		if(status) return (-1);
-	}
-
-	//Depot belongs to each schedule
-	// Sum_j ek_1j = 1, where k = schedule number
-	// Sum_j ek_j1 = 1
-	std::cout << "--> The deposit is part of every schedule" << std::endl;
-	rmatbeg[0] = 0; //Just one restriction
-	rhs[0] = 1.0;
-	sense[0] = 'E';
-	for(int day = 0; day < prob->schedules; ++day)
-	{
-		for(int j = 1; j < prob->N; ++j)
-		{
-			rmatval[j-1] = 1.0;
-			rmatind[j-1] = edge_var_number(prob, day, 0, j);
-			rmatind2[j-1] = edge_var_number(prob, day, j, 0);
-		}
-		//Add restrictions one by one
-		status = CPXXaddrows(env, lp, 0, 1, prob->N-1, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
-		if(status) return (-1);
-
-		status = CPXXaddrows(env, lp, 0, 1, prob->N-1, rhs, sense, rmatbeg, rmatind2, rmatval, nullptr, nullptr);
-		if(status) return (-1);
-	}
-
-	//Subtours restrictions
-	std::cout << "--> No subtours in each schedule" << std::endl;
-
-	//Consistency between edges selected and selected day for every other day clients.
-	//sum_{i,j}(e1_ij) = 1+ every_day + sum_k(1-u_k) for k in every_other_day
-	rmatbeg[0] = 0; //Just one restriction
-	rhs[0] = static_cast<double>(1 + prob->every_day); //Every schedule uses exactly 1 depot
-	sense[0] = 'E';
-	for(int day = 0; day < prob->schedules; ++day)
-	{
-		int added = 0;
+		int def_vars = 0;
 		for(int i = 0; i < prob->N; ++i)
 		{
 			for(int j = 0; j < prob->N; ++j)
 			{
 				if(i != j)
 				{
-					rmatval[added] = 1.0; //Variable coef
-					rmatind[added] = edge_var_number(prob, day, i, j); //Variable number
-					added++;
+					rmatval[def_vars] = prob->demands[j]; //Variable coef
+					rmatind[def_vars] = edge_var_number(prob, day, i, j); //Variable number
+					def_vars++;
 				}
 			}
-
-			if(i >= prob->depots+prob->every_day)
-			{
-				rmatval[added] = -1.0;
-				rmatind[added] = every_other_day_var_number(prob, day, i);
-				added++;
-			}
 		}
-
 		//Add restrictions one by one
-		assert(prob->N*(prob->N-1) + (prob->N - prob->depots - prob->every_day) == added);
-		status = CPXXaddrows(env, lp, 0, 1, added, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
-		if(status) return (-1);
-	}
-
-	//If U_ik says that i is visited during day k, then schedule must arrive till i during day k
-	//U_j1 = Sum_{i} e1_ij
-	rmatbeg[0] = 0; //Just one restriction
-	rhs[0] = 0.0;
-	sense[0] = 'E';
-	for(int day = 0; day < prob->schedules; ++day)
-	{
-		for(int j = prob->depots+prob->every_day; j < prob->N; ++j)
+		assert(def_vars == prob->N*(prob->N-1));
+		status = CPXXaddrows(env, lp, 0, 1, def_vars, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
+		if(status)
 		{
-			int added = 0;
-			for(int i = 0; i<prob->N; ++i)
-			{
-				if(j != i)
-				{
-					rmatval[added] = -1.0;
-					rmatind[added] = edge_var_number(prob, day, i, j);
-					added++;
-				}
-			}
-			rmatval[added] = 1.0;
-			rmatind[added] = every_other_day_var_number(prob, day, j);
-			added++;
-
-			//Add restrictions one by one
-			assert((prob->N-1) + 1 == added);
-			status = CPXXaddrows(env, lp, 0, 1, added, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
-			if(status) return (-1);
+			std::cerr << "Row/Constraint could not be added. CPLEX error " << status << std::endl;
+			return (-1);
 		}
 	}
 
-
+	//Subtours restrictions
+	std::cout << "--> Lazy subtours elimination" << std::endl;
 	/* Set up to use MIP lazyconstraint callback. */
 	/*auto* lazyconinfo = new lazy_constrain_info(lp, prob);
 	status = CPXXsetlazyconstraintcallbackfunc(env, subtour_constraint_generator, lazyconinfo);

@@ -8,12 +8,13 @@
 
 struct Problem
 {
-	int N;  							//number of clients (including depot)
-	double K;  						//vehicle capacity
-	int schedules;				//number of schedules
-	int depots;						//number of depots
-	int every_day;				//number of clients who must be visited every day
-	int every_other_day;	//number of clients who must be visited every day
+	int N;  								//number of clients (including depot)
+	double K;  							//vehicle capacity
+	int schedules;					//number of schedules to create
+	int cust_clients_freq;	//number of days that not every day clients must be visited
+	int depots;							//number of depots
+	int every_day;					//number of clients who must be visited every day
+	int cust_clients;				//number of clients who must be visited each cust_clients_freq
 	std::vector<std::vector<double>> costs;
 	std::vector<double> demands;
 

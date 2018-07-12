@@ -36,9 +36,10 @@ int main(int argc, char* argv[])
 		prob->N = n;
 		prob->depots = depots;
 		prob->every_day = every_day_clients;
-		prob->every_other_day = every_other_day_clients;
+		prob->cust_clients = every_other_day_clients;
+		prob->cust_clients_freq = 1;
 		prob->K = vehicle_capacity;
-		prob->schedules = 2; //Esto está hardcodeado, debería ser pasado a las instancias de entrada
+		prob->schedules = 2; //TODO: Esto está hardcodeado, debería ser pasado a las instancias de entrada
 		for(int i=0; i<depots; ++i) prob->demands[i] = 0.0;
 		for(int i=depots; i<n; ++i) input_file >> prob->demands[i];
 		for(int i=0; i<n; ++i)
