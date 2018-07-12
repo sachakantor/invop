@@ -1,3 +1,4 @@
+#include<cassert>
 #include<iostream>
 #include<fstream>
 
@@ -24,14 +25,18 @@ int main(int argc, char* argv[])
 		};
 
 		//Load instance
-		int n, depots, every_day_clients;
+		int n, depots, every_day_clients, every_other_day_clients;
 		double vehicle_capacity;
-		input_file >> n >> depots >> every_day_clients >> vehicle_capacity;
+		input_file >> n >> depots >> every_day_clients >> every_other_day_clients >> vehicle_capacity;
+
+		assert(n == depots+every_day_clients+every_other_day_clients);
+		//TODO: agergar assert de factibilidad de solucion SIN multitrip
 
 		auto* prob = new Problem(n);
 		prob->N = n;
 		prob->depots = depots;
 		prob->every_day = every_day_clients;
+		prob->every_other_day = every_other_day_clients;
 		prob->K = vehicle_capacity;
 		prob->schedules = 2; //Esto está hardcodeado, debería ser pasado a las instancias de entrada
 		for(int i=0; i<depots; ++i) prob->demands[i] = 0.0;
@@ -47,6 +52,7 @@ int main(int argc, char* argv[])
 		//Solve
 		std::vector<std::vector<int>> schedules;
 		double cost = solve(prob, schedules);
+		//TODO: falta manejo de errores si no hay solución factible.
 
 		//Print solution
 		std::cout << "Costo solucion optima: " << cost << std::endl;

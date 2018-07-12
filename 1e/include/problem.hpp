@@ -8,11 +8,12 @@
 
 struct Problem
 {
-	int N;  				//number of clients (including depot)
-	double K;  				//vehicle capacity
-	int schedules;	//number of schedules
-	int depots;			//number of depots
-	int every_day;	//number of clients who must be visited every day
+	int N;  							//number of clients (including depot)
+	double K;  						//vehicle capacity
+	int schedules;				//number of schedules
+	int depots;						//number of depots
+	int every_day;				//number of clients who must be visited every day
+	int every_other_day;	//number of clients who must be visited every day
 	std::vector<std::vector<double>> costs;
 	std::vector<double> demands;
 
@@ -20,23 +21,15 @@ struct Problem
 	explicit Problem(int n);
 };
 
-struct cutinfo {
+/*struct lazy_constrain_info
+{
 	CPXLPptr lp;
-	int      numcols;
-	int      num;
-	double   *x;
-	int      *beg;
-	int      *ind;
-	double   *val;
-	double   *rhs;
-	int      nodeid;
-	double   nodeobjval;
-	int      objsen;
-};
+	Problem* prob;
 
-static int CPXPUBLIC subtour_constraint_generator(CPXCENVptr env, void* cbdata, int wherefrom, void* cbhandle, int* useraction_p);
-//static int makelazyconstraint(CPXENVptr env, CPXLPptr lp, cutinfo* cutinfo);
-//static void initnodeobjvalinfo(CPXENVptr env, CPXLPptr lp, cutinfo* cutinfo);
+	lazy_constrain_info(CPXLPptr lp, Problem* prob);
+};*/
+
+//static int CPXPUBLIC subtour_constraint_generator(CPXCENVptr env, void* cbdata, int wherefrom, void* cbhandle, int* useraction_p);
 
 int initialize_structures(CPXENVptr& env, CPXLPptr& lp);
 void free_structures(CPXENVptr env, CPXLPptr lp);

@@ -5,6 +5,7 @@
 
 #include<coordinates.hpp>
 
+//TODO: actualizar que se agrego every_other_day_clients a los archivos de entrada
 int main(int argc, char* argv[])
 {
 	if(argc < 3)
