@@ -20,6 +20,24 @@ struct Problem
 	explicit Problem(int n);
 };
 
+struct cutinfo {
+	CPXLPptr lp;
+	int      numcols;
+	int      num;
+	double   *x;
+	int      *beg;
+	int      *ind;
+	double   *val;
+	double   *rhs;
+	int      nodeid;
+	double   nodeobjval;
+	int      objsen;
+};
+
+static int CPXPUBLIC subtour_constraint_generator(CPXCENVptr env, void* cbdata, int wherefrom, void* cbhandle, int* useraction_p);
+//static int makelazyconstraint(CPXENVptr env, CPXLPptr lp, cutinfo* cutinfo);
+//static void initnodeobjvalinfo(CPXENVptr env, CPXLPptr lp, cutinfo* cutinfo);
+
 int initialize_structures(CPXENVptr& env, CPXLPptr& lp);
 void free_structures(CPXENVptr env, CPXLPptr lp);
 int set_parameters(CPXENVptr env);
