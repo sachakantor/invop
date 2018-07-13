@@ -63,7 +63,8 @@ set_target_properties(ilocplex PROPERTIES
 
 
 #set(CPLEX_CXX_FLAGS "-m64 -fPIC -fno-strict-aliasing -fexceptions -DNDEBUG -DIL_STD")
-set(CPLEX_CXX_FLAGS "-m64 -fPIC -fno-strict-aliasing -fexceptions -DNDEBUG")
+#set(CPLEX_CXX_FLAGS "-m64 -fPIC -fno-strict-aliasing -fexceptions -DNDEBUG")
+set(CPLEX_CXX_FLAGS "-m64 -fPIC -fno-strict-aliasing -fexceptions")
 set(CPLEX_ILOCPLEX_CXX_FLAGS "-Wno-long-long")
 
 
