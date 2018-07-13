@@ -73,6 +73,10 @@ if (CMAKE_BUILD_TYPE MATCHES Debug)
 	add_definitions(-DDEBUG=1)
 endif()
 
+if (CMAKE_BUILD_TYPE MATCHES Release)
+	set(CPLEX_CXX_FLAGS "${CPLEX_CXX_FLAGS} -DNDEBUG")
+endif()
+
 # Projects
 #add_subdirectory(external_libraries/json) #nlohmann Json library
 #add_subdirectory(lib) #internal libraries

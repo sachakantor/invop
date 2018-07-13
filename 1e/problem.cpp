@@ -223,28 +223,39 @@ int set_parameters(CPXENVptr env)
 	return status;
 }
 
-int edge_var_number(const Problem* prob, int schedule, int from, int to)
+int edge_var_number(const Problem* prob, int day, int from, int to)
 {
-	assert(0 <= schedule && schedule < prob->schedules);
+	assert(0 <= day && day < prob->schedules);
 	assert(from != to);
 	assert(0<=from && from < prob->N);
-	assert(0<=to && to < prob->N);
+	assert(0<to && to <= prob->N);
+	assert(from != 0 || to != prob->N);
 	//This is a picewise function that maps the edge from 'from' to 'to', taking into consideration
 	//that the graph doesn't have loop edges.
-	int edge_number = schedule*prob->N*(prob->N-1) + (prob->N-1)*from + to; //schedule_offset + row_offset + col_offset
-	if(to > from) edge_number--; //take into consideration loop edges not labeled/numbered.
+	//Depot vertex is divided in depot_src (0) and depot_dst (n), and depot_src don't have incoming edges nor depot_dst outgoing.
+	int edge_number;
+	if(from == 0)
+	{
+		edge_number = day*(prob->N-1) + (to-1);
+	} else {
+		edge_number = prob->schedules*(prob->N-1)									//depot_src outgoing edges
+									+day*((prob->N-1)*(prob->N-2)+(prob->N-1))	//day offset, depot_src doesn't have outgoing edges
+									+(prob->N-1)*(from-1)												//row_offset
+									+(to-1);																		//col_offset
+		if(to > from) edge_number--; //take into consideration loop edges not labeled/numbered.
+	}
 
 	return edge_number;
 }
 
-int vertex_var_number(const Problem* prob, int schedule, int vertex)
+int vertex_var_number(const Problem* prob, int day, int vertex)
 {
-	assert(0 <= schedule && schedule < prob->schedules);
-	assert(0 <= vertex && vertex < prob->N);
-	return prob->schedules*prob->N*(prob->N-1) + schedule*prob->N + vertex; //edge_vars_offset + row_offset + col_offset
+	assert(0 <= day && day < prob->schedules);
+	assert(0 <= vertex && vertex <= prob->N);
+	return prob->schedules*prob->N*(prob->N-1) + day*(prob->N+1) + vertex; //edge_vars_offset + row_offset + col_offset;
 }
 
-static int CPXPUBLIC subtour_constraint_generator(CPXCENVptr env, void* cbdata, int wherefrom, void* cbhandle, int* useraction_p)
+/*static int CPXPUBLIC subtour_constraint_generator(CPXCENVptr env, void* cbdata, int wherefrom, void* cbhandle, int* useraction_p)
 {
 	std::cout << "Callback called" << std::endl;
 	int status = 0;
@@ -332,10 +343,10 @@ static int CPXPUBLIC subtour_constraint_generator(CPXCENVptr env, void* cbdata, 
 			if(status) {
 				std::cerr << "Failed to add cut." << std::endl;
 				return (-1);
-			} /*else {
+			} *//*else {
 				//Tell CPLEX that cuts have been created
 				*useraction_p = CPX_CALLBACK_SET;
-			}*/
+			}*//*
 		}
 	}
 
@@ -343,7 +354,7 @@ static int CPXPUBLIC subtour_constraint_generator(CPXCENVptr env, void* cbdata, 
 	delete[] cutval;
 
 	return (status);
-}
+}*/
 
 int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 {
@@ -355,7 +366,7 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 	std::cout << "-> Defining columns/variables" << std::endl;
 
 	int edge_vars_quantity = prob->schedules * prob->N * (prob->N-1); //complete directed graph, for prob->schedules schedules
-	int vertex_vars_quantity = prob->schedules * prob->N;
+	int vertex_vars_quantity = prob->schedules * (prob->N+1); //+1 because of depot_dst
 	int vars_quantity = edge_vars_quantity + vertex_vars_quantity;
 
 	auto* obj_var_coefs = new double[vars_quantity];
@@ -364,26 +375,52 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 	auto* column_types = new char[vars_quantity];
 
 	int def_vars = 0;
-	for(int day = 0; day < prob->schedules; ++day)
-	{
-		for(int i = 0; i < prob->N; ++i)
-		{
-			for(int j = 0; j < prob->N; ++j)
-			{
-				if(i != j)
-				{
-					obj_var_coefs[edge_var_number(prob, day, i, j)] = prob->costs[i][j];
-					lower_bounds[edge_var_number(prob, day, i, j)] = 0.0;
-					upper_bounds[edge_var_number(prob, day, i, j)] = 1.0;
-					column_types[edge_var_number(prob, day, i, j)] = 'B';
+	for(int day = 0; day < prob->schedules; ++day) {
+		//depot_src vars
+		obj_var_coefs[vertex_var_number(prob, day, 0)]=0.0;
+		lower_bounds[vertex_var_number(prob, day, 0)]=0.0;
+		upper_bounds[vertex_var_number(prob, day, 0)]=1.0;
+		column_types[vertex_var_number(prob, day, 0)]='B';
+		def_vars++;
+
+		//depot_dst vars
+		obj_var_coefs[vertex_var_number(prob, day, prob->N)]=0.0;
+		lower_bounds[vertex_var_number(prob, day, prob->N)]=0.0;
+		upper_bounds[vertex_var_number(prob, day, prob->N)]=1.0;
+		column_types[vertex_var_number(prob, day, prob->N)]='B';
+		def_vars++;
+
+		for(int i=1; i < prob->N; ++i) {
+			//Client edges
+			for(int j=1; j < prob->N; ++j) {
+				if(i != j) {
+					obj_var_coefs[edge_var_number(prob, day, i, j)]=prob->costs[i][j];
+					lower_bounds[edge_var_number(prob, day, i, j)]=0.0;
+					upper_bounds[edge_var_number(prob, day, i, j)]=1.0;
+					column_types[edge_var_number(prob, day, i, j)]='B';
 					def_vars++;
 				}
 			}
 
-			obj_var_coefs[vertex_var_number(prob, day, i)] = 0.0;
-			lower_bounds[vertex_var_number(prob, day, i)] = 0.0;
-			upper_bounds[vertex_var_number(prob, day, i)] = 1.0;
-			column_types[vertex_var_number(prob, day, i)] = 'B';
+			//Client vars
+			obj_var_coefs[vertex_var_number(prob, day, i)]=0.0;
+			lower_bounds[vertex_var_number(prob, day, i)]=0.0;
+			upper_bounds[vertex_var_number(prob, day, i)]=1.0;
+			column_types[vertex_var_number(prob, day, i)]='B';
+			def_vars++;
+
+			//depot_src edges
+			obj_var_coefs[edge_var_number(prob, day, 0, i)]=prob->costs[0][i];
+			lower_bounds[edge_var_number(prob, day, 0, i)]=0.0;
+			upper_bounds[edge_var_number(prob, day, 0, i)]=1.0;
+			column_types[edge_var_number(prob, day, 0, i)]='B';
+			def_vars++;
+
+			//depot_dst edges
+			obj_var_coefs[edge_var_number(prob, day, i, prob->N)]=prob->costs[i][0];
+			lower_bounds[edge_var_number(prob, day, i, prob->N)]=0.0;
+			upper_bounds[edge_var_number(prob, day, i, prob->N)]=1.0;
+			column_types[edge_var_number(prob, day, i, prob->N)]='B';
 			def_vars++;
 		}
 	}
@@ -405,78 +442,119 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 	auto* rmatind2 = new int[vars_quantity];
 	auto* rmatval = new double[vars_quantity];
 
-	//Every day client is visited exactly one time in each schedule
+	//Vehicle capacity constraint
+	// Sum_ij e_ijk dj <= Capacity (k=1..prob->schedules)
+	std::cout << "--> Vehicle capacity is not violated" << std::endl;
+	rmatbeg[0] = 0; //Just one constraint
+	rhs[0] = prob->K;
+	sense[0] = 'L';
+	for(int day=0; day < prob->schedules; ++day) {
+		int def_vars=0;
+		for(int i=0; i < prob->N; ++i) {
+			for(int j=1; j < prob->N; ++j) {
+				if(i != j && (i != 0 || j != prob->N)) {
+					rmatval[def_vars]=prob->demands[j]; //Variable coef
+					rmatind[def_vars]=edge_var_number(prob, day, i, j); //Variable number
+					def_vars++;
+				}
+			}
+		}
+		//Add constraint
+		assert(def_vars == prob->N*(prob->N-1) -(prob->N-1));
+		status=CPXXaddrows(env, lp, 0, 1, def_vars, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
+		if(status) {
+			std::cerr << "Row/Constraint could not be added." << std::endl;
+			return (-1);
+		}
+	}
+
+	//Clients are visited accordingly to their setup (all days, cust_clients_freq times each 'schedule days')
 	// Sum_k(u_ik) = prob->schedules  (for all i in every_day_clients)
 	// Sum_k(u_ik) = prob->cust_clients_freq  (for all i in cust_clients)
 	std::cout	<< "--> Every day clients are visited every day, the rest is visited "
-						<< prob->cust_clients_freq << " times in " << prob->schedules << " days." << std::endl;
+						<< prob->cust_clients_freq << " times in a " << prob->schedules << " days cycle."
+						<< std::endl;
 	rmatbeg[0] = 0; //Just one constraint
 	sense[0] = 'E';
-	rhs[0] = static_cast<double>(prob->schedules);
-	for(int i = 0; i < prob->N; ++i)
-	{
-		int def_vars = 0;
-		for(int day = 0; day < prob->schedules; ++day)
-		{
-			rmatval[day] = 1.0; //Variable coef
-			rmatind[day] = vertex_var_number(prob, day, i); //Variable number
+	for(int i=0; i < prob->N+1; ++i) {
+		int def_vars=0;
+		for(int day=0; day < prob->schedules; ++day) {
+			rmatval[day]=1.0; //Variable coef
+			rmatind[day]=vertex_var_number(prob, day, i); //Variable number
 			def_vars++;
 		}
 
-		if(i >= prob->depots + prob->every_day) rhs[0] = static_cast<double>(prob->cust_clients_freq);
+		if(prob->depots+prob->every_day <= i && i < prob->N) {
+			rhs[0]=static_cast<double>(prob->cust_clients_freq);
+		} else {
+			rhs[0] = static_cast<double>(prob->schedules);
+		}
 
 		//Add constraint
 		assert(def_vars == prob->schedules);
-		status = CPXXaddrows(env, lp, 0, 1, def_vars, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
-		if(status) return (-1);
+		status=CPXXaddrows(env, lp, 0, 1, def_vars, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
+		if(status) { return (-1); }
 	}
 
 	//Each day a client is visited, vehicle arrives and leaves exactly one time.
-	// Sum_i(e_ijk) = u_jk  (forall k=1..prob->schedules, forall j in V).
-	// Sum_i(e_jik) = u_jk  (forall k=1..prob->schedules, forall j in V).
-	std::cout << "--> Same schedule day arrival and departure for every selected day of each client" << std::endl;
+	std::cout << "--> Clients are visited exactly one time each day they must be visited" << std::endl;
+	// Sum_i(e_ijk) = u_jk  (k=1..prob->schedules, j=1..n, i=1..n-1, i#j)
 	rmatbeg[0] = 0; //Just one constraint
 	rhs[0] = 0.0;
 	sense[0] = 'E';
-	for(int day = 0; day < prob->schedules; ++day)
-	{
-		//for(int j = prob->depots+prob->every_day; j < prob->N; ++j)
-		for(int j = 0; j < prob->N; ++j)
-		{
-			rmatval[0] = -1.0;
-			rmatind[0] = vertex_var_number(prob, day, j);
-			rmatind2[0] = vertex_var_number(prob, day, j);
+	for(int day=0; day < prob->schedules; ++day) {
+		for(int j=1; j < prob->N+1; ++j) {
+			rmatval[0]=-1.0;
+			rmatind[0]=vertex_var_number(prob, day, j);
+			rmatind2[0]=vertex_var_number(prob, day, j);
 
-			int def_vars = 1;
-			for(int i = 0; i < prob->N; ++i)
-			{
-				if(i != j)
-				{
-					rmatval[def_vars] = 1.0; //Variable coef
-					rmatind[def_vars] = edge_var_number(prob, day, i, j); //Variable number
-					rmatind2[def_vars] = edge_var_number(prob, day, j, i); //Variable number
+			int def_vars=1;
+			for(int i=0; i < prob->N; ++i) {
+				if(i != j && (i != 0 || j != prob->N)) {
+					rmatval[def_vars]=1.0; //Variable coef
+					rmatind[def_vars]=edge_var_number(prob, day, i, j); //Variable number
 					def_vars++;
 				}
 			}
 			//Add constraints
-			assert(def_vars == prob->N-1 + 1);
-			status = CPXXaddrows(env, lp, 0, 1, def_vars, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
-			if(status)
-			{
-				std::cerr << "Row/Constraint could not be added." << std::endl;
-				return (-1);
-			}
-
-			status = CPXXaddrows(env, lp, 0, 1, def_vars, rhs, sense, rmatbeg, rmatind2, rmatval, nullptr, nullptr);
-			if(status)
-			{
+			assert(def_vars == prob->N-1 +1);
+			status=CPXXaddrows(env, lp, 0, 1, def_vars, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
+			if(status) {
 				std::cerr << "Row/Constraint could not be added." << std::endl;
 				return (-1);
 			}
 		}
 	}
 
+	// Sum_j(e_ijk) = u_ik  (k=1..prob->schedules, i=0..n-1, j=1..n, i#j)
 	rmatbeg[0] = 0; //Just one constraint
+	rhs[0] = 0.0;
+	sense[0] = 'E';
+	for(int day=0; day < prob->schedules; ++day) {
+		for(int i=0; i < prob->N; ++i) {
+			rmatval[0]=-1.0;
+			rmatind[0]=vertex_var_number(prob, day, i);
+			rmatind2[0]=vertex_var_number(prob, day, i);
+
+			int def_vars=1;
+			for(int j=1; j < prob->N+1; ++j) {
+				if(i != j && (i != 0 || j != prob->N)) {
+					rmatval[def_vars]=1.0; //Variable coef
+					rmatind[def_vars]=edge_var_number(prob, day, i, j); //Variable number
+					def_vars++;
+				}
+			}
+			//Add constraints
+			assert(def_vars == prob->N-1 +1);
+			status=CPXXaddrows(env, lp, 0, 1, def_vars, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
+			if(status) {
+				std::cerr << "Row/Constraint could not be added." << std::endl;
+				return (-1);
+			}
+		}
+	}
+
+	/*rmatbeg[0] = 0; //Just one constraint
 	rhs[0] = 1.0;
 	sense[0] = 'E';
 	for(int day = 0; day < prob->schedules; ++day)
@@ -547,44 +625,10 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 			std::cerr << "Row/Constraint could not be added." << std::endl;
 			return (-1);
 		}
-	}
-
-
-
-
-	//Vehicle capacity constraint
-	// Sum_ij e_ijk dj <= Capacity (forall k=1..prob->schedules)
-	std::cout << "--> Vehicle capacity is not violated" << std::endl;
-	rmatbeg[0] = 0; //Just one constraint
-	rhs[0] = prob->K;
-	sense[0] = 'L';
-	for(int day = 0; day < prob->schedules; ++day)
-	{
-		int def_vars = 0;
-		for(int i = 0; i < prob->N; ++i)
-		{
-			for(int j = 0; j < prob->N; ++j)
-			{
-				if(i != j)
-				{
-					rmatval[def_vars] = prob->demands[j]; //Variable coef
-					rmatind[def_vars] = edge_var_number(prob, day, i, j); //Variable number
-					def_vars++;
-				}
-			}
-		}
-		//Add constraint
-		assert(def_vars == prob->N*(prob->N-1));
-		status = CPXXaddrows(env, lp, 0, 1, def_vars, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
-		if(status)
-		{
-			std::cerr << "Row/Constraint could not be added. CPLEX error " << status << std::endl;
-			return (-1);
-		}
-	}
+	}*/
 
   //Depots must be in every solution
-	std::cout << "--> Depot is in the solution" << std::endl;
+	/*std::cout << "--> Depot is in the solution" << std::endl;
 	rmatbeg[0] = 0; //Just one constraint
 	rhs[0] = 1.0;
 	sense[0] = 'E';
@@ -613,18 +657,18 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 			std::cerr << "Row/Constraint could not be added. CPLEX error " << status << std::endl;
 			return (-1);
 		}
-	}
+	}*/
 
 	//Subtours elimination
-	std::cout << "--> Lazy subtours elimination" << std::endl;
-	/* Set up to use MIP lazyconstraint callback. */
+	/*std::cout << "--> Lazy subtours elimination" << std::endl;
+	*//* Set up to use MIP lazyconstraint callback. *//*
 	auto* lazyconinfo = new lazy_constrain_info(lp, prob);
 	status = CPXXsetlazyconstraintcallbackfunc(env, subtour_constraint_generator, lazyconinfo);
 	if(status)
 	{
 		std::cerr << "Error adding lazy constraing callback function." << std::endl;
 		return (-1);
-	}
+	}*/
 
 	std::cout << "--> No more constraints" << std::endl;
 
@@ -710,45 +754,42 @@ double solve(Problem* prob, std::vector<std::vector<int>>& schedules)
 
 	//Solve MIP //TODO: ver de pasar a su propia funcion la parte donde se optimiza y construye el resultado
 	std::cout << "Solving" << std::endl;
-	status = CPXXmipopt(env,lp);
-	if(status) return(-1);
+	status=CPXXmipopt(env, lp);
+	if(status) { return (-1); }
 
 	//Retrieve optimal solution
 	double objval;
-	//double* y = nullptr;
-	status = CPXXgetobjval (env, lp, &objval); // Get optimum objective function value
-	if(status) return(-1);
+	status=CPXXgetobjval(env, lp, &objval); // Get optimum objective function value
+	if(status) { return (-1); }
 
-	//int cur_numrows = CPXXgetnumrows(env,lp);
-	int cur_numcols = CPXXgetnumcols(env,lp);
-	auto* vars = new double[cur_numcols];
-	status = CPXXgetx (env, lp, vars, 0, cur_numcols-1); // Pedimos los valores de las variables en la solucion
-	if(status) return(-1);
+	int cur_numcols=CPXXgetnumcols(env, lp);
+	auto* vars=new double[cur_numcols];
+	status=CPXXgetx(env, lp, vars, 0, cur_numcols-1); // Get solution's variable values
+	if(status) { return (-1); }
 
 	//Armamos el orden de cada schedule respecto de la nomeclatura de las variables
-	for(int day = 0; day < prob->schedules; ++day)
-	{
-		for(int i = 0; i < prob->N; ++i)
-			for(int j = 0; j < prob->N; ++j)
-				if(i != j && vars[edge_var_number(prob, day, i, j)] == 1.0) std::cout << i << "->" << j << std::endl;
-
+	/*for(int day=0; day < prob->schedules; ++day) {
+		for(int i=0; i < prob->N; ++i) {
+			for(int j=0; j < prob->N; ++j) {
+				if(i != j && vars[edge_var_number(prob, day, i, j)] == 1.0) {
+					std::cout << i << "->" << j << std::endl;
+				}
+			}
+		}
 		std::cout << std::endl;
-	}
+	}*/
 
-
-
+	std::cout << "Building optimal solution" << std::endl;
 	schedules.clear();
-	for(int day = 0; day < prob->schedules; ++day)
-	{
+	for(int day=0; day < prob->schedules; ++day) {
 		schedules.emplace_back();
-		int cur_farm = 0;
-		do
-		{
+		int cur_farm=0;
+		do {
 			schedules[day].push_back(cur_farm);
-			int j = 0; while(j == cur_farm || vars[edge_var_number(prob, day, cur_farm, j)] != 1.0) ++j;
-			cur_farm = j;
-		} while(cur_farm != 0);
-		schedules[day].push_back(cur_farm);
+			int j=1; while(j == cur_farm || vars[edge_var_number(prob, day, cur_farm, j)] != 1.0) ++j;
+			cur_farm=j;
+		} while(cur_farm != prob->N);
+		schedules[day].push_back(0);
 	}
 
 	delete[] vars;
