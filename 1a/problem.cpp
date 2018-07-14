@@ -22,7 +22,7 @@ mip_vars::mip_vars(const Problem* prob)
 
 int mip_vars::var_num(mip_vars::var_type t, int oil, int month) const {
 	assert(0 <= month && month < month_q); //TODO: se debería hacer verdadero manejo de errores acá
-	assert(0 <= oil && oil <= oil_q);
+	assert(0 <= oil && oil < oil_q);
 	int base_offset = 0;
 	switch(t) {
 		case mip_vars::var_type::refined 		: base_offset = refined_base_offset; break;
@@ -259,8 +259,8 @@ int set_parameters(CPXENVptr env) {
 }
 
 int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp) {
-	//Problem is minimization
-	CPXXchgobjsen(env, lp, CPX_MIN);
+	//Problem is maximization
+	CPXXchgobjsen(env, lp, CPX_MAX);
 	int status;
 
 	//Model's variables definition
@@ -347,7 +347,7 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp) {
 		assert(def_vars == prob->V);
 		status = CPXXaddrows(env, lp, 0, 1, def_vars, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
 		if(status != 0) {
-			std::cerr << "Row/Constraint could not be added." << std::endl;
+			std::cerr << "Row/Constraint could not be added. Line: " << __LINE__ << std::endl;
 			return (status);
 		}
 
@@ -362,7 +362,7 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp) {
 		assert(def_vars == prob->NV);
 		status = CPXXaddrows(env, lp, 0, 1, def_vars, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
 		if(status != 0) {
-			std::cerr << "Row/Constraint could not be added." << std::endl;
+			std::cerr << "Row/Constraint could not be added. Line: " << __LINE__ << std::endl;
 			return (status);
 		}
 
@@ -371,35 +371,27 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp) {
 		sense[0] = 'G';
 		def_vars = 0;
 		for(int oil = 0; oil < prob->V+prob->NV; ++oil) {
-			rmatval[def_vars] = prob->max_hardness;
-			rmatind[def_vars] = vars.var_num(mip_vars::var_type::refined, oil, month);
-			def_vars++;
-
-			rmatval[def_vars] = -prob->hardness[oil];
+			rmatval[def_vars] = prob->max_hardness-prob->hardness[oil];
 			rmatind[def_vars] = vars.var_num(mip_vars::var_type::refined, oil, month);
 			def_vars++;
 		}
-		assert(def_vars == 2*(prob->V+prob->NV));
+		assert(def_vars == prob->V+prob->NV);
 		status = CPXXaddrows(env, lp, 0, 1, def_vars, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
 		if(status != 0) {
-			std::cerr << "Row/Constraint could not be added." << std::endl;
+			std::cerr << "Row/Constraint could not be added. Line: " << __LINE__ << std::endl;
 			return (status);
 		}
 
 		def_vars = 0;
 		for(int oil = 0; oil < prob->V+prob->NV; ++oil) {
-			rmatval[def_vars] = -prob->min_hardness;
-			rmatind[def_vars] = vars.var_num(mip_vars::var_type::refined, oil, month);
-			def_vars++;
-
-			rmatval[def_vars] = prob->hardness[oil];
+			rmatval[def_vars] = prob->hardness[oil]-prob->min_hardness;
 			rmatind[def_vars] = vars.var_num(mip_vars::var_type::refined, oil, month);
 			def_vars++;
 		}
-		assert(def_vars == 2*(prob->V+prob->NV));
+		assert(def_vars == prob->V+prob->NV);
 		status = CPXXaddrows(env, lp, 0, 1, def_vars, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
 		if(status != 0) {
-			std::cerr << "Row/Constraint could not be added." << std::endl;
+			std::cerr << "Row/Constraint could not be added. Line: " << __LINE__ << std::endl;
 			return (status);
 		}
 
@@ -415,7 +407,7 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp) {
 		assert(def_vars == prob->V+prob->NV);
 		status = CPXXaddrows(env, lp, 0, 1, def_vars, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
 		if(status != 0) {
-			std::cerr << "Row/Constraint could not be added." << std::endl;
+			std::cerr << "Row/Constraint could not be added. Line: " << __LINE__ << std::endl;
 			return (status);
 		}
 
@@ -435,7 +427,7 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp) {
 		assert(def_vars == prob->V+1);
 		status = CPXXaddrows(env, lp, 0, 1, def_vars, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
 		if(status != 0) {
-			std::cerr << "Row/Constraint could not be added." << std::endl;
+			std::cerr << "Row/Constraint could not be added. Line: " << __LINE__ << std::endl;
 			return (status);
 		}
 
@@ -460,7 +452,7 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp) {
 
 			status = CPXXaddrows(env, lp, 0, 1, 1, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
 			if(status != 0) {
-				std::cerr << "Row/Constraint could not be added." << std::endl;
+				std::cerr << "Row/Constraint could not be added. Line: " << __LINE__ << std::endl;
 				return (status);
 			}
 
@@ -475,7 +467,7 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp) {
 
 			status = CPXXaddrows(env, lp, 0, 1, 2, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
 			if(status != 0) {
-				std::cerr << "Row/Constraint could not be added." << std::endl;
+				std::cerr << "Row/Constraint could not be added. Line: " << __LINE__ << std::endl;
 				return (status);
 			}
 
@@ -490,7 +482,7 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp) {
 
 			status = CPXXaddrows(env, lp, 0, 1, 2, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
 			if(status != 0) {
-				std::cerr << "Row/Constraint could not be added." << std::endl;
+				std::cerr << "Row/Constraint could not be added. Line: " << __LINE__ << std::endl;
 				return (status);
 			}
 		}
@@ -514,7 +506,7 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp) {
 		rmatind[0] = vars.var_num(mip_vars::var_type::storage, oil, 0);
 		status = CPXXaddrows(env, lp, 0, 1, 1, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
 		if(status != 0) {
-			std::cerr << "Row/Constraint could not be added." << std::endl;
+			std::cerr << "Row/Constraint could not be added. Line: " << __LINE__ << std::endl;
 			return (status);
 		}
 
@@ -524,7 +516,7 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp) {
 		rmatind[0] = vars.var_num(mip_vars::var_type::storage, oil, prob->M-1);
 		status = CPXXaddrows(env, lp, 0, 1, 1, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
 		if(status != 0) {
-			std::cerr << "Row/Constraint could not be added." << std::endl;
+			std::cerr << "Row/Constraint could not be added. Line: " << __LINE__ << std::endl;
 			return (status);
 		}
 
@@ -546,7 +538,7 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp) {
 
 			status = CPXXaddrows(env, lp, 0, 1, 4, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
 			if(status != 0) {
-				std::cerr << "Row/Constraint could not be added." << std::endl;
+				std::cerr << "Row/Constraint could not be added. Line: " << __LINE__ << std::endl;
 				return (status);
 			}
 		}
@@ -594,7 +586,7 @@ int solveMIP(const Problem* prob,
 						 CPXENVptr env,
 						 CPXLPptr lp,
 						 double* const objval,
-						 std::vector<std::vector<int>>& schedules) {
+						 std::vector<std::vector<month_oil_solution>>& solution) {
 	int status = 0;
 	status = CPXXmipopt(env, lp);
 	if(status != 0) { return status; }
@@ -608,26 +600,27 @@ int solveMIP(const Problem* prob,
 	status = CPXXgetx(env, lp, vars, 0, cur_numcols-1); // Get solution's variable values
 	if(status != 0) { return status; }
 
-	//Build solution according to instance vertex numbers
-	/*schedules.clear();
-	for(int day = 0; day < prob->schedules; ++day) {
-		schedules.emplace_back();
-		int cur_farm = 0;
-		do {
-			schedules[day].push_back(cur_farm);
-			int j = 1;
-			while(j == cur_farm || vars[edge_var_number(prob, day, cur_farm, j)] != 1.0) ++j;
-			cur_farm = j;
-		} while(cur_farm != prob->N);
-		schedules[day].push_back(0);
-	}*/
+	//Build solution according to problem
+	mip_vars mip_var_nums(prob);
+	solution.clear();
+	for(int month = 0; month < prob->M; ++month) {
+		solution.emplace_back();
+		for(int oil = 0; oil < prob->V+prob->NV; ++ oil) {
+			month_oil_solution res;
+			res.month = month;
+			res.tons_buyed = vars[mip_var_nums.var_num(mip_vars::var_type::buy, oil, month)];
+			res.tons_refined = vars[mip_var_nums.var_num(mip_vars::var_type::refined, oil, month)];
+			res.tons_storaged = vars[mip_var_nums.var_num(mip_vars::var_type::storage, oil, month)];
+			solution.back().push_back(res);
+		}
+	}
 
 	delete[] vars;
 	return status;
 }
 
 /**********************/
-int solve(Problem* prob, std::vector<std::vector<int>>& schedules, double& objval) {
+int solve(Problem* prob, double& objval, std::vector<std::vector<month_oil_solution>>& solution) {
 	// CPlex environment
 	int status = 0;
 	CPXENVptr env = nullptr;
@@ -662,7 +655,7 @@ int solve(Problem* prob, std::vector<std::vector<int>>& schedules, double& objva
 	}*/
 
 	std::cout << "Solving" << std::endl;
-	status = solveMIP(prob, env, lp, &objval, schedules);
+	status = solveMIP(prob, env, lp, &objval, solution);
 	if(status != 0) {
 		free_structures(env, lp);
 		return status;

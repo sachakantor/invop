@@ -1,5 +1,5 @@
-#ifndef INVOP_1E_PROBLEM_HPP
-#define INVOP_1E_PROBLEM_HPP
+#ifndef INVOP_1A_PROBLEM_HPP
+#define INVOP_1A_PROBLEM_HPP
 
 #include<vector>
 
@@ -28,9 +28,16 @@ struct Problem {
 	//explicit Problem(int n);
 };
 
+struct month_oil_solution {
+	double tons_refined;
+	double tons_storaged;
+	double tons_buyed;
+	int month;
+};
+
 class mip_vars {
 public:
-	mip_vars(const Problem* prob);
+	explicit mip_vars(const Problem* prob);
 	enum class var_type { refined, storage, buy, oil_switch};
 	int var_num(var_type t, int oil, int month) const;
 	int total() const;
@@ -62,7 +69,11 @@ int set_parameters(CPXENVptr env);
 int edge_var_number(const Problem* prob, int day, int from, int to);
 int vertex_var_number(const Problem* prob, int day, int vertex);
 int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp);
-int solveMIP(const Problem* prob, CPXENVptr env, CPXLPptr lp, double* const objval, std::vector<std::vector<int>>& schedules);
-int solve(Problem* prob, std::vector<std::vector<int>>& schedules, double& objval);
+int solveMIP(const Problem* prob,
+						 CPXENVptr env,
+						 CPXLPptr lp,
+						 double* const objval,
+						 std::vector<std::vector<month_oil_solution>>& solution);
+int solve(Problem* prob, double& objval, std::vector<std::vector<month_oil_solution>>& solution);
 
-#endif //INVOP_PROBLEM_HPP
+#endif //INVOP_1A_PROBLEM_HPP

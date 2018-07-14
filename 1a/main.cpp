@@ -1,6 +1,9 @@
+#include<algorithm>
 #include<cassert>
+#include<iomanip>
 #include<iostream>
 #include<fstream>
+#include<string>
 
 #include<problem.hpp>
 #include<ilcplex/cplexx.h>
@@ -87,23 +90,48 @@ int main(int argc, char* argv[])
 		}
 
 		//Solve
-		std::vector<std::vector<int>> schedules;
+		std::vector<std::vector<month_oil_solution>> solution;
 		double cost;
 		int status;
-		status = solve(prob, schedules, cost);
+		status = solve(prob, cost, solution);
 		if(status != 0)
 		{
 			return status;
 		}
 
 		//Print solution
-		/*std::cout << "Costo solucion optima: " << cost << std::endl;
-		for(int day = 0; day < prob->schedules; ++day)
-		{
-			std::cout << "Ruta día " << day << ": ";
-			for(auto i : schedules[day]) std::cout << i+1 << " ";
-			std::cout << std::endl;
-		}*/
+		std::cout << "Costo solucion optima: " << cost << std::endl;
+
+		//Header //TODO: Todo lo que viene es demasiado casero. Habría que hacerlo bien.
+		std::cout << std::left << std::setw(3) << "Mes";
+		std::string underline = "===";
+		for(int oil = 0; oil < prob->V+prob->NV; ++oil) {
+			char oil_type = 'V';
+			int oil_num = oil+1;
+			if(oil >= prob->V) {
+				oil_type = 'O';
+				oil_num -= prob->V;
+			}
+			std::cout << std::setw(9) << " || Ref " << std::setw(1) << oil_type << std::setw(2) << oil_num
+				<< std::setw(7) << " | Alm " << std::setw(1) << oil_type << std::setw(2) << oil_num
+				<< std::setw(7) << " | Com " << std::setw(1) << oil_type << std::setw(2) << oil_num;
+
+			underline += "=##==========|=========|========";
+		}
+		std::cout << std::endl << underline << std::endl;
+
+		//Values
+		std::replace(underline.begin(),underline.end(), '=', '-');
+		std::replace(underline.begin(),underline.end(), '#', '+');
+		for(int month = 0; month < prob->M; ++month) {
+			std::cout << std::left << std::setw(3) << month+1;
+			for(int oil = 0; oil < prob->V+prob->NV; ++oil) {
+				std::cout << std::setw(4) << " || " << std::right << std::setw(8) << solution[month][oil].tons_refined
+					<< std::setw(3) << " | " << std::right << std::setw(7) << solution[month][oil].tons_storaged
+					<< std::setw(3) << " | " << std::right << std::setw(7) << solution[month][oil].tons_buyed;
+			}
+			std::cout << std::endl << underline << std::endl;
+		}
 
 		//End
 		delete prob;
