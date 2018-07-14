@@ -1,5 +1,6 @@
 #include<cassert>
 #include<iostream>
+#include<unordered_map>
 #include<vector>
 
 #include<problem.hpp>
@@ -255,7 +256,7 @@ int vertex_var_number(const Problem* prob, int day, int vertex)
 	return prob->schedules*prob->N*(prob->N-1) + day*(prob->N+1) + vertex; //edge_vars_offset + row_offset + col_offset;
 }
 
-/*static int CPXPUBLIC subtour_constraint_generator(CPXCENVptr env, void* cbdata, int wherefrom, void* cbhandle, int* useraction_p)
+static int CPXPUBLIC subtour_constraint_generator(CPXCENVptr env, void* cbdata, int wherefrom, void* cbhandle, int* useraction_p)
 {
 	std::cout << "Callback called" << std::endl;
 	int status = 0;
@@ -278,15 +279,13 @@ int vertex_var_number(const Problem* prob, int day, int vertex)
 		return (-1);
 	}
 
-	//Search for subtours in integer solution
+	//Search for (sub)tours in the integer solution
 	for(int day = 0; day < lazyconinfo->prob->schedules; ++day)
 	{
 		std::cout << "Searching subtours in day " << day << std::endl;
 		int days_clients = 0;
-		for(int i = 0; i < lazyconinfo->prob->N; ++i)
-		{
-			if(x[vertex_var_number(lazyconinfo->prob, day, i)] == 1.0)
-			{
+		for(int i=0; i < lazyconinfo->prob->N+1; ++i) {
+			if(x[vertex_var_number(lazyconinfo->prob, day, i)] == 1.0) {
 				days_clients++;
 				std::cout << i << " ";
 			}
@@ -294,9 +293,15 @@ int vertex_var_number(const Problem* prob, int day, int vertex)
 		std::cout << std::endl;
 
 
-		for(int i = 0; i < lazyconinfo->prob->N; ++i)
-			for(int j = 0; j < lazyconinfo->prob->N; ++j)
-				if(i != j && x[edge_var_number(lazyconinfo->prob, day, i, j)] == 1.0) std::cout << i << "->" << j << std::endl;
+		for(int i=0; i < lazyconinfo->prob->N; ++i) {
+			for(int j=1; j < lazyconinfo->prob->N+1; ++j) {
+				if(i != j
+					 && (i != 0 || j != lazyconinfo->prob->N)
+					 && x[edge_var_number(lazyconinfo->prob, day, i, j)] == 1.0) {
+					std::cout << i << "->" << j << std::endl;
+				}
+			}
+		}
 		std::cout << std::endl;
 
 		std::cout << "Buscando tour iniciado y terminado en el depot: ";
@@ -306,47 +311,92 @@ int vertex_var_number(const Problem* prob, int day, int vertex)
 		{
 			tour.push_back(cur_client);
 			std::cout << cur_client << " ";
-			int j = 0;
-			while(j == cur_client || x[edge_var_number(lazyconinfo->prob, day, cur_client, j)] != 1.0)
+			int j = 1; while(j == cur_client || x[edge_var_number(lazyconinfo->prob, day, cur_client, j)] != 1.0)
 			{
 				std::cout << "(" << j << ")";
 				++j;
 			}
 			cur_client = j;
-			assert(0 <= cur_client && cur_client < lazyconinfo->prob->N);
-		} while(cur_client != 0);
+			assert(0 < cur_client && cur_client <= lazyconinfo->prob->N);
+		} while(cur_client != lazyconinfo->prob->N);
+		tour.push_back(cur_client);
 		std::cout << cur_client << std::endl;
 
 		assert(tour.size() <= static_cast<long unsigned int>(days_clients));
-		if(tour.size() < static_cast<long unsigned int>(days_clients))
-		{
+		if(tour.size() < static_cast<long unsigned int>(days_clients)) {
 			std::cout << "Subtour found for day " << day << ". Generating cut" << std::endl;
-			//Generate cut
-			double rhs = 1.0;
-			int cutnz = 0;
-			tour.push_back(tour.front());
-			for(int t = 0; static_cast<long unsigned int>(t) < tour.size()-1; ++t)
-			{
-				cutval[cutnz] = 1.0;
-				cutind[cutnz] = vertex_var_number(lazyconinfo->prob, day, tour[t]);
-				cutnz++;
-
-				cutval[cutnz] = -1.0;
-				cutind[cutnz] = edge_var_number(lazyconinfo->prob, day, tour[t], tour[t+1]);
-				cutnz++;
+			for(auto i : tour) {
+				std::cout << i << "->";
 			}
-			std::cout << "Adding cut for day " << day << std::endl;
+			std::cout << std::endl;
+			//Generate cut
+
+
+			//Detectint all subtours
+			std::vector<std::vector<int>> subtours;
+			std::unordered_map<int, int> client_subtour;
+
+			subtours.push_back(tour);
+			for(auto i : subtours.back()) {
+				client_subtour[i] = subtours.size()-1;
+			}
+
+			for(int i=0; i < lazyconinfo->prob->N+1; ++i) {
+				if(x[vertex_var_number(lazyconinfo->prob, day, i)] == 1.0 && client_subtour.count(i) == 0) {
+					subtours.emplace_back();
+					int cur_client = i;
+					do {
+						subtours.back().push_back(cur_client);
+						client_subtour[cur_client] = subtours.size()-1;
+						int j = 1; while(j == cur_client || x[edge_var_number(lazyconinfo->prob, day, cur_client, j)] != 1.0) { ++j; }
+						cur_client = j;
+						assert(0 < cur_client && cur_client <= lazyconinfo->prob->N);
+					} while(client_subtour.count(cur_client) == 0);
+				}
+			}
+
+			for(auto subtour : subtours) {
+				double rhs = 1.0;
+				int cutnz = 0;
+
+				for(auto i : subtour) {
+					cutval[cutnz] = 1.0;
+					cutind[cutnz] = vertex_var_number(lazyconinfo->prob, day, i);
+					cutnz++;
+
+					for(auto j : subtour) {
+						if(i != j
+							 && (i != 0 || j != lazyconinfo->prob->N)
+							 && i != lazyconinfo->prob->N
+							 && j != 0) {
+							cutval[cutnz] = -1.0;
+							cutind[cutnz] = edge_var_number(lazyconinfo->prob, day, i, j);
+							cutnz++;
+						}
+					}
+				}
+				std::cout << "Adding cut for day " << day << std::endl;
+				status = CPXXcutcallbackadd(env, cbdata, wherefrom, cutnz, rhs, 'G', cutind, cutval, CPX_USECUT_FORCE);
+				if(status) {
+					std::cerr << "Failed to add cut." << std::endl;
+					return (-1);
+				}
+			}
+			//Tell CPLEX that cuts have been created
+			*useraction_p = CPX_CALLBACK_SET;
+
+			//std::cout << "Adding cut for day " << day << std::endl;
 			//Add cut and let CPLEX know
-			//assert(cutnz == tour.size()*(tour.size()-1) + tour.size());
+			//assert(static_cast<long unsigned int>(cutnz) == (tour.size()-1)*(tour.size()-2) + tour.size());
 			//status = CPXXcutcallbackadd(env, cbdata, wherefrom, cutnz, rhs, 'G', cutind, cutval, CPX_USECUT_FORCE);
-			status = CPXXcutcallbackaddlocal(env, cbdata, wherefrom, cutnz, rhs, 'G', cutind, cutval);
-			if(status) {
+			//status = CPXXcutcallbackaddlocal(env, cbdata, wherefrom, cutnz, rhs, 'G', cutind, cutval);
+			/*if(status) {
 				std::cerr << "Failed to add cut." << std::endl;
 				return (-1);
-			} *//*else {
+			} else {
 				//Tell CPLEX that cuts have been created
 				*useraction_p = CPX_CALLBACK_SET;
-			}*//*
+			}*/
 		}
 	}
 
@@ -354,7 +404,7 @@ int vertex_var_number(const Problem* prob, int day, int vertex)
 	delete[] cutval;
 
 	return (status);
-}*/
+}
 
 int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 {
@@ -660,15 +710,14 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 	}*/
 
 	//Subtours elimination
-	/*std::cout << "--> Lazy subtours elimination" << std::endl;
-	*//* Set up to use MIP lazyconstraint callback. *//*
-	auto* lazyconinfo = new lazy_constrain_info(lp, prob);
-	status = CPXXsetlazyconstraintcallbackfunc(env, subtour_constraint_generator, lazyconinfo);
-	if(status)
-	{
+	std::cout << "--> Lazy subtours elimination" << std::endl;
+	/* Set up to use MIP lazyconstraint callback.*/
+	auto* lazyconinfo=new lazy_constrain_info(lp, prob);
+	status=CPXXsetlazyconstraintcallbackfunc(env, subtour_constraint_generator, lazyconinfo);
+	if(status) {
 		std::cerr << "Error adding lazy constraing callback function." << std::endl;
 		return (-1);
-	}*/
+	}
 
 	std::cout << "--> No more constraints" << std::endl;
 

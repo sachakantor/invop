@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
 		for(int day = 0; day < prob->schedules; ++day)
 		{
 			std::cout << "Día " << day << ": ";
-			for(auto i : schedules[day]) std::cout << i << " ";
+			for(auto i : schedules[day]) std::cout << i+1 << " ";
 			std::cout << std::endl;
 		}
 
