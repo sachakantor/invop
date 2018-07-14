@@ -38,6 +38,7 @@ int set_parameters(CPXENVptr env);
 int edge_var_number(const Problem* prob, int day, int from, int to);
 int vertex_var_number(const Problem* prob, int day, int vertex);
 int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp);
-double solve(Problem* prob, std::vector<std::vector<int>>& schedules);
+int solveMIP(const Problem* prob, CPXENVptr env, CPXLPptr lp, double* const objval, std::vector<std::vector<int>>& schedules);
+int solve(Problem* prob, std::vector<std::vector<int>>& schedules, double& objval);
 
 #endif //INVOP_PROBLEM_HPP

@@ -52,14 +52,19 @@ int main(int argc, char* argv[])
 
 		//Solve
 		std::vector<std::vector<int>> schedules;
-		double cost = solve(prob, schedules);
-		//TODO: falta manejo de errores si no hay solución factible.
+		double cost;
+		int status;
+		status = solve(prob, schedules, cost);
+		if(status != 0)
+		{
+			return status;
+		}
 
 		//Print solution
 		std::cout << "Costo solucion optima: " << cost << std::endl;
 		for(int day = 0; day < prob->schedules; ++day)
 		{
-			std::cout << "Día " << day << ": ";
+			std::cout << "Ruta día " << day << ": ";
 			for(auto i : schedules[day]) std::cout << i+1 << " ";
 			std::cout << std::endl;
 		}
