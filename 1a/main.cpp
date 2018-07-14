@@ -102,7 +102,7 @@ int main(int argc, char* argv[])
 		//Print solution
 		std::cout << "Costo solucion optima: " << cost << std::endl;
 
-		//Header //TODO: Todo lo que viene es demasiado casero. Habría que hacerlo bien.
+		//Header //TODO: Todo lo que viene es demasiado casero. Habría que hacerlo bien. O tener un formato estandard para imprimir a archivo.
 		std::cout << std::left << std::setw(3) << "Mes";
 		std::string underline = "===";
 		for(int oil = 0; oil < prob->V+prob->NV; ++oil) {
