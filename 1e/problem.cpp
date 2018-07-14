@@ -258,105 +258,49 @@ int vertex_var_number(const Problem* prob, int day, int vertex)
 
 static int CPXPUBLIC subtour_constraint_generator(CPXCENVptr env, void* cbdata, int wherefrom, void* cbhandle, int* useraction_p)
 {
-	std::cout << "Callback called" << std::endl;
 	int status = 0;
-
 	*useraction_p = CPX_CALLBACK_DEFAULT;
 	auto* lazyconinfo = static_cast<lazy_constrain_info*>(cbhandle);
-
-	std::cout << "Gettig cols number" << std::endl;
 	int cur_numcols = CPXXgetnumcols(env, lazyconinfo->lp);
 	auto* x = new double[cur_numcols];
 
-	auto* cutind = new int[cur_numcols]; //TODO: estos pedidos de memoria deberían hacerse solo cuando se va a usar
-	auto* cutval = new double[cur_numcols];
-
-	std::cout << "Gettig callback node variable values" << std::endl;
 	status = CPXXgetcallbacknodex(env, cbdata, wherefrom, x, 0, cur_numcols-1);
-	if(status)
-	{
+	if(status) {
 		std::cerr << "Failed to get node solution." << std::endl;
 		return (-1);
 	}
 
-	//Search for (sub)tours in the integer solution
-	for(int day = 0; day < lazyconinfo->prob->schedules; ++day)
-	{
-		std::cout << "Searching subtours in day " << day << std::endl;
-		int days_clients = 0;
-		for(int i=0; i < lazyconinfo->prob->N+1; ++i) {
-			if(x[vertex_var_number(lazyconinfo->prob, day, i)] == 1.0) {
-				days_clients++;
-				std::cout << i << " ";
+	//Search for all (sub)tours in the integer solution
+	for(int day = 0; day < lazyconinfo->prob->schedules; ++day)	{
+		//Detect all subtours
+		// TODO: estas dos estructuras de datos deberían ser una clase/struct con sus métodos que mantengan la info consistente
+		std::vector<std::vector<int>> subtours;
+		std::unordered_map<int, int> client_subtour;
+
+		for(int i = 0; i < lazyconinfo->prob->N; ++i) {
+			if(x[vertex_var_number(lazyconinfo->prob, day, i)] == 1.0 && client_subtour.count(i) == 0) {
+				subtours.emplace_back();
+				int cur_client = i;
+				do {
+					subtours.back().push_back(cur_client);
+					client_subtour[cur_client] = subtours.size()-1;
+
+					int j = 1;
+					while(j == cur_client
+								|| (cur_client < lazyconinfo->prob->N
+										&& x[edge_var_number(lazyconinfo->prob, day, cur_client, j)] != 1.0)) { ++j; }
+					cur_client = j;
+
+					assert(0 < cur_client && cur_client <= lazyconinfo->prob->N);
+				} while(client_subtour.count(cur_client) == 0);
 			}
 		}
-		std::cout << std::endl;
 
-
-		for(int i=0; i < lazyconinfo->prob->N; ++i) {
-			for(int j=1; j < lazyconinfo->prob->N+1; ++j) {
-				if(i != j
-					 && (i != 0 || j != lazyconinfo->prob->N)
-					 && x[edge_var_number(lazyconinfo->prob, day, i, j)] == 1.0) {
-					std::cout << i << "->" << j << std::endl;
-				}
-			}
-		}
-		std::cout << std::endl;
-
-		std::cout << "Buscando tour iniciado y terminado en el depot: ";
-		int cur_client = 0;
-		std::vector<int> tour;
-		do
-		{
-			tour.push_back(cur_client);
-			std::cout << cur_client << " ";
-			int j = 1; while(j == cur_client || x[edge_var_number(lazyconinfo->prob, day, cur_client, j)] != 1.0)
-			{
-				std::cout << "(" << j << ")";
-				++j;
-			}
-			cur_client = j;
-			assert(0 < cur_client && cur_client <= lazyconinfo->prob->N);
-		} while(cur_client != lazyconinfo->prob->N);
-		tour.push_back(cur_client);
-		std::cout << cur_client << std::endl;
-
-		assert(tour.size() <= static_cast<long unsigned int>(days_clients));
-		if(tour.size() < static_cast<long unsigned int>(days_clients)) {
-			std::cout << "Subtour found for day " << day << ". Generating cut" << std::endl;
-			for(auto i : tour) {
-				std::cout << i << "->";
-			}
-			std::cout << std::endl;
-			//Generate cut
-
-
-			//Detectint all subtours
-			std::vector<std::vector<int>> subtours;
-			std::unordered_map<int, int> client_subtour;
-
-			subtours.push_back(tour);
-			for(auto i : subtours.back()) {
-				client_subtour[i] = subtours.size()-1;
-			}
-
-			for(int i=0; i < lazyconinfo->prob->N+1; ++i) {
-				if(x[vertex_var_number(lazyconinfo->prob, day, i)] == 1.0 && client_subtour.count(i) == 0) {
-					subtours.emplace_back();
-					int cur_client = i;
-					do {
-						subtours.back().push_back(cur_client);
-						client_subtour[cur_client] = subtours.size()-1;
-						int j = 1; while(j == cur_client || x[edge_var_number(lazyconinfo->prob, day, cur_client, j)] != 1.0) { ++j; }
-						cur_client = j;
-						assert(0 < cur_client && cur_client <= lazyconinfo->prob->N);
-					} while(client_subtour.count(cur_client) == 0);
-				}
-			}
-
+		if(subtours.size() > 1) {
+			auto* cutind = new int[cur_numcols];
+			auto* cutval = new double[cur_numcols];
+			double rhs = 1.0;
 			for(auto subtour : subtours) {
-				double rhs = 1.0;
 				int cutnz = 0;
 
 				for(auto i : subtour) {
@@ -375,7 +319,7 @@ static int CPXPUBLIC subtour_constraint_generator(CPXCENVptr env, void* cbdata, 
 						}
 					}
 				}
-				std::cout << "Adding cut for day " << day << std::endl;
+				//std::cout << "Adding cut for day " << day << std::endl;
 				status = CPXXcutcallbackadd(env, cbdata, wherefrom, cutnz, rhs, 'G', cutind, cutval, CPX_USECUT_FORCE);
 				if(status) {
 					std::cerr << "Failed to add cut." << std::endl;
@@ -385,23 +329,10 @@ static int CPXPUBLIC subtour_constraint_generator(CPXCENVptr env, void* cbdata, 
 			//Tell CPLEX that cuts have been created
 			*useraction_p = CPX_CALLBACK_SET;
 
-			//std::cout << "Adding cut for day " << day << std::endl;
-			//Add cut and let CPLEX know
-			//assert(static_cast<long unsigned int>(cutnz) == (tour.size()-1)*(tour.size()-2) + tour.size());
-			//status = CPXXcutcallbackadd(env, cbdata, wherefrom, cutnz, rhs, 'G', cutind, cutval, CPX_USECUT_FORCE);
-			//status = CPXXcutcallbackaddlocal(env, cbdata, wherefrom, cutnz, rhs, 'G', cutind, cutval);
-			/*if(status) {
-				std::cerr << "Failed to add cut." << std::endl;
-				return (-1);
-			} else {
-				//Tell CPLEX that cuts have been created
-				*useraction_p = CPX_CALLBACK_SET;
-			}*/
+			delete[] cutind;
+			delete[] cutval;
 		}
 	}
-
-	delete[] cutind;
-	delete[] cutval;
 
 	return (status);
 }
@@ -604,111 +535,6 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 		}
 	}
 
-	/*rmatbeg[0] = 0; //Just one constraint
-	rhs[0] = 1.0;
-	sense[0] = 'E';
-	for(int day = 0; day < prob->schedules; ++day)
-	{
-		for(int j = 0; j < prob->depots+prob->every_day; ++j)
-		{
-			int def_vars = 0;
-			for(int i = 0; i < prob->N; ++i)
-			{
-				if(i != j)
-				{
-					rmatval[def_vars] = 1.0; //Variable coef
-					rmatind[def_vars] = edge_var_number(prob, day, i, j); //Variable number
-					rmatind2[def_vars] = edge_var_number(prob, day, j, i); //Variable number
-					def_vars++;
-				}
-			}
-			//Add constraints
-			assert(def_vars == prob->N-1);
-			status = CPXXaddrows(env, lp, 0, 1, def_vars, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
-			if(status)
-			{
-				std::cerr << "Row/Constraint could not be added." << std::endl;
-				return (-1);
-			}
-
-			status = CPXXaddrows(env, lp, 0, 1, def_vars, rhs, sense, rmatbeg, rmatind2, rmatval, nullptr, nullptr);
-			if(status)
-			{
-				std::cerr << "Row/Constraint could not be added." << std::endl;
-				return (-1);
-			}
-		}
-	}
-
-	rmatbeg[0] = 0; //Just one constraint
-	rhs[0] = 1.0;
-	sense[0] = 'E';
-	for(int j = prob->depots+prob->every_day; j < prob->N; ++j)
-	{
-		int def_vars = 0;
-		for(int i = 0; i < prob->N; ++i)
-		{
-			if(i != j)
-			{
-				for(int day = 0; day < prob->schedules; ++day)
-				{
-					rmatval[def_vars] = 1.0; //Variable coef
-					rmatind[def_vars] = edge_var_number(prob, day, i, j); //Variable number
-					rmatind2[def_vars] = edge_var_number(prob, day, j, i); //Variable number
-					def_vars++;
-				}
-			}
-		}
-
-		//Add constraints
-		assert(def_vars == prob->schedules*(prob->N-1));
-		status = CPXXaddrows(env, lp, 0, 1, def_vars, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
-		if(status)
-		{
-			std::cerr << "Row/Constraint could not be added." << std::endl;
-			return (-1);
-		}
-
-		status = CPXXaddrows(env, lp, 0, 1, def_vars, rhs, sense, rmatbeg, rmatind2, rmatval, nullptr, nullptr);
-		if(status)
-		{
-			std::cerr << "Row/Constraint could not be added." << std::endl;
-			return (-1);
-		}
-	}*/
-
-  //Depots must be in every solution
-	/*std::cout << "--> Depot is in the solution" << std::endl;
-	rmatbeg[0] = 0; //Just one constraint
-	rhs[0] = 1.0;
-	sense[0] = 'E';
-	for(int day = 0; day < prob->schedules; ++day)
-	{
-		int def_vars = 0;
-		for(int i = 1; i < prob->N; ++i)
-		{
-			rmatval[def_vars] = 1.0;
-			rmatind[def_vars] = edge_var_number(prob, day, 0, i);
-			rmatind2[def_vars] = edge_var_number(prob, day, i, 0);
-			def_vars++;
-		}
-		//Add constraint
-		assert(def_vars == prob->N-1);
-		status = CPXXaddrows(env, lp, 0, 1, def_vars, rhs, sense, rmatbeg, rmatind, rmatval, nullptr, nullptr);
-		if(status)
-		{
-			std::cerr << "Row/Constraint could not be added. CPLEX error " << status << std::endl;
-			return (-1);
-		}
-
-		status = CPXXaddrows(env, lp, 0, 1, def_vars, rhs, sense, rmatbeg, rmatind2, rmatval, nullptr, nullptr);
-		if(status)
-		{
-			std::cerr << "Row/Constraint could not be added. CPLEX error " << status << std::endl;
-			return (-1);
-		}
-	}*/
-
 	//Subtours elimination
 	std::cout << "--> Lazy subtours elimination" << std::endl;
 	/* Set up to use MIP lazyconstraint callback.*/
@@ -724,7 +550,6 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 	// Este sector de codigo permite proveerle a CPLEX una solucion factible de entrada
 	/*status = CPXsetintparam(env, CPX_PARAM_ADVIND, 1);
 	if(status)exit(-1);
-
 
 	int beg[1] = {0};
 	int nzcnt = prob->N+prob->bestObj;
@@ -744,9 +569,9 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp)
 	int effortlevel[1] = {CPX_MIPSTART_AUTO};
 	status = CPXaddmipstarts(env, lp, 1, nzcnt, beg, varindices, values, effortlevel, NULL);
 
-
 	free(varindices);
 	free(values);*/
+
 	delete[] obj_var_coefs;
 	delete[] lower_bounds;
 	delete[] upper_bounds;
@@ -816,18 +641,7 @@ double solve(Problem* prob, std::vector<std::vector<int>>& schedules)
 	status=CPXXgetx(env, lp, vars, 0, cur_numcols-1); // Get solution's variable values
 	if(status) { return (-1); }
 
-	//Armamos el orden de cada schedule respecto de la nomeclatura de las variables
-	/*for(int day=0; day < prob->schedules; ++day) {
-		for(int i=0; i < prob->N; ++i) {
-			for(int j=0; j < prob->N; ++j) {
-				if(i != j && vars[edge_var_number(prob, day, i, j)] == 1.0) {
-					std::cout << i << "->" << j << std::endl;
-				}
-			}
-		}
-		std::cout << std::endl;
-	}*/
-
+	//Build solution according to instance vertex numbers
 	std::cout << "Building optimal solution" << std::endl;
 	schedules.clear();
 	for(int day=0; day < prob->schedules; ++day) {
