@@ -15,7 +15,7 @@ struct Problem
 	int depots;							//number of depots
 	int every_day;					//number of clients who must be visited every day
 	int cust_clients;				//number of clients who must be visited each cust_clients_freq
-	std::vector<std::vector<double>> oil_buy_cost_per_month;
+	std::vector<std::vector<double>> costs;
 	std::vector<double> demands;
 
 	Problem();

@@ -46,7 +46,7 @@ int main(int argc, char* argv[])
 		{
 			for(int j=0; j<n; ++j)
 			{
-				input_file >> prob->oil_buy_cost_per_month[i][j];
+				input_file >> prob->costs[i][j];
 			}
 		}
 
