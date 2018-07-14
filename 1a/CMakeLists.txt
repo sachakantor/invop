@@ -1,4 +1,4 @@
-project(invop-1e)
+project(invop-1a)
 
 # Compiler
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CPLEX_CXX_FLAGS} ${CPLEX_ILOCPLEX_CXX_FLAGS}")
@@ -20,24 +20,17 @@ link_directories(${CPLEX_LIBRARY}
 
 # Targets
 set(SOURCE_FILES main.cpp)
-add_executable(1e ${SOURCE_FILES})
-add_executable(coordinates_to_distances coordinates_to_distances.cpp)
+add_executable(1a ${SOURCE_FILES})
 
 # Because CLion can't detect .hpp who includes a .cpp (mimic for
 # separated declaration and implementation for template classes),
 # I put implementation in .hpp and link it as a library
-add_library(coordinates INTERFACE)
-target_sources(coordinates INTERFACE
-							 "${INCLUDE_DIR}/coordinates.hpp"
-							 "${CMAKE_CURRENT_SOURCE_DIR}/coordinates.cpp")
-target_link_libraries(coordinates_to_distances coordinates)
-
-add_library(1elp INTERFACE)
-target_sources(1elp INTERFACE
+add_library(1alp INTERFACE)
+target_sources(1alp INTERFACE
 							 "${INCLUDE_DIR}/problem.hpp"
 							 "${CMAKE_CURRENT_SOURCE_DIR}/problem.cpp")
-target_link_libraries(1e
-											1elp
+target_link_libraries(1a
+											1alp
 											${CMAKE_THREAD_LIBS_INIT}
 											${CMAKE_DL_LIBS}
 											c

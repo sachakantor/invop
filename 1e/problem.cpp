@@ -9,7 +9,7 @@
 
 /**********************/
 Problem::Problem() = default;
-Problem::Problem(int n) : costs(n, std::vector<double>(n, 0.0)), demands(n, 0.0) {}
+Problem::Problem(int n) : oil_buy_cost_per_month(n, std::vector<double>(n, 0.0)), demands(n, 0.0) {}
 
 /**********************/
 lazy_constrain_info::lazy_constrain_info(CPXLPptr lp, Problem* prob) : lp(lp), prob(prob) {}
@@ -365,7 +365,7 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp) {
 			//Client edges
 			for(int j = 1; j < prob->N; ++j) {
 				if(i != j) {
-					obj_var_coefs[edge_var_number(prob, day, i, j)] = prob->costs[i][j];
+					obj_var_coefs[edge_var_number(prob, day, i, j)] = prob->oil_buy_cost_per_month[i][j];
 					lower_bounds[edge_var_number(prob, day, i, j)] = 0.0;
 					upper_bounds[edge_var_number(prob, day, i, j)] = 1.0;
 					column_types[edge_var_number(prob, day, i, j)] = 'B';
@@ -381,14 +381,14 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp) {
 			def_vars++;
 
 			//depot_src edges
-			obj_var_coefs[edge_var_number(prob, day, 0, i)] = prob->costs[0][i];
+			obj_var_coefs[edge_var_number(prob, day, 0, i)] = prob->oil_buy_cost_per_month[0][i];
 			lower_bounds[edge_var_number(prob, day, 0, i)] = 0.0;
 			upper_bounds[edge_var_number(prob, day, 0, i)] = 1.0;
 			column_types[edge_var_number(prob, day, 0, i)] = 'B';
 			def_vars++;
 
 			//depot_dst edges
-			obj_var_coefs[edge_var_number(prob, day, i, prob->N)] = prob->costs[i][0];
+			obj_var_coefs[edge_var_number(prob, day, i, prob->N)] = prob->oil_buy_cost_per_month[i][0];
 			lower_bounds[edge_var_number(prob, day, i, prob->N)] = 0.0;
 			upper_bounds[edge_var_number(prob, day, i, prob->N)] = 1.0;
 			column_types[edge_var_number(prob, day, i, prob->N)] = 'B';
