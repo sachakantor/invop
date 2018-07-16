@@ -527,33 +527,7 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp) {
 		return (status);
 	}
 
-	std::cout << "--> No more constraints" << std::endl;
-
-	// Este sector de codigo permite proveerle a CPLEX una solucion factible de entrada
-	/*status = CPXsetintparam(env, CPX_PARAM_ADVIND, 1);
-	if(status != 0)exit(-1);
-
-	int beg[1] = {0};
-	int nzcnt = prob->N+prob->bestObj;
-	int* varindices = (int*) malloc(sizeof(int)*nzcnt);
-	for(int i = 0; i < prob->N; i++)
-	{
-		varindices[i] = i*prob->bestObj+prob->colores[i];
-	}
-	for(int i = 0; i < prob->bestObj; i++)
-	{
-		varindices[i+prob->N] = i+prob->N*prob->bestObj;
-	}
-
-
-	double* values = (double*) malloc(sizeof(double)*nzcnt);
-	for(int i = 0; i < nzcnt; ++i)values[i] = 1.0;
-	int effortlevel[1] = {CPX_MIPSTART_AUTO};
-	status = CPXaddmipstarts(env, lp, 1, nzcnt, beg, varindices, values, effortlevel, NULL);
-
-	free(varindices);
-	free(values);*/
-
+	//Free pointers
 	delete[] obj_var_coefs;
 	delete[] lower_bounds;
 	delete[] upper_bounds;
@@ -566,6 +540,85 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp) {
 	delete[] rmatval;
 
 	return 0;
+}
+
+int initial_solution_mip(Problem* prob, CPXENVptr env, CPXLPptr lp) {
+	int status = 0;
+	int edge_vars_quantity = prob->schedules*prob->N*(prob->N-1); //complete directed graph with split depot, for prob->schedules days
+	int vertex_vars_quantity = prob->schedules*(prob->N+1); //+1 because of depot_dst
+	int vars_quantity = edge_vars_quantity+vertex_vars_quantity;
+	auto* rmatind = new int[vars_quantity];
+	auto* rmatval = new double[vars_quantity];
+
+	status = CPXXsetintparam(env, CPX_PARAM_ADVIND, 1);
+	if(status != 0) {
+		std::cerr << "Error setting initial feasible solution parameter." << std::endl;
+		return (status);
+	}
+
+	int def_vars = 0;
+	int next_cust_client = prob->depots+prob->every_day;
+	for(int day = 0; day < prob->schedules; ++day) {
+		rmatval[def_vars] = 1.0;
+		rmatind[def_vars] = vertex_var_number(prob, day, 0); //depot_src //TODO: no esta claro que hacer si hay más de 1 depot
+		def_vars++;
+
+		double availably_capacity = prob->K;
+		int cur_vertex = 0; //depot_src
+		for(int i = prob->depots; i < prob->depots+prob->every_day; ++i) {
+			rmatval[def_vars] = 1.0;
+			rmatind[def_vars] = vertex_var_number(prob, day, i);
+			def_vars++;
+
+			rmatval[def_vars] = 1.0;
+			rmatind[def_vars] = edge_var_number(prob, day, cur_vertex, i);
+			def_vars++;
+
+			cur_vertex = i;
+			availably_capacity -= prob->demands[i];
+		}
+
+		for(;next_cust_client < prob->N && availably_capacity - prob->demands[next_cust_client] >= 0; ++next_cust_client) {
+			rmatval[def_vars] = 1.0;
+			rmatind[def_vars] = vertex_var_number(prob, day, next_cust_client);
+			def_vars++;
+
+			rmatval[def_vars] = 1.0;
+			rmatind[def_vars] = edge_var_number(prob, day, cur_vertex, next_cust_client);
+			def_vars++;
+
+			availably_capacity -= prob->demands[next_cust_client];
+			cur_vertex = next_cust_client;
+		}
+
+		//depot_dst
+		rmatval[def_vars] = 1.0;
+		rmatind[def_vars] = vertex_var_number(prob, day, prob->N);
+		def_vars++;
+
+		rmatval[def_vars] = 1.0;
+		rmatind[def_vars] = edge_var_number(prob, day, cur_vertex, prob->N);
+		def_vars++;
+	}
+
+	assert(def_vars
+				 == prob->schedules*(prob->depots+prob->every_day+1) //every day + depot_dst vertexes
+						+prob->schedules*(prob->depots+prob->every_day)  //every day + depot_dst edges
+						+prob->cust_clients //cust clients + depot_dst vertexes
+						+prob->cust_clients-1 // cust clients + depot_dst edges
+						+prob->schedules-1); //every day + cust clients edges union
+	CPXNNZ beg[1] = {0};
+	int effortlevel[1] = {CPX_MIPSTART_AUTO};
+	status = CPXXaddmipstarts(env, lp, 1, def_vars, beg, rmatind, rmatval, effortlevel, nullptr);
+	if(status != 0) {
+		std::cerr << "Error adding initial feasible solution." << std::endl;
+		return (status);
+	}
+
+	delete[] rmatval;
+	delete[] rmatind;
+
+	return status;
 }
 
 int solveMIP(const Problem* prob,
@@ -631,7 +684,14 @@ int solve(Problem* prob, std::vector<std::vector<int>>& schedules, double& objva
 		return status;
 	}
 
-	// DEBUG.
+	/*std::cout << "Providing initial integer solution" << std::endl;
+	status = initial_solution_mip(prob, env, lp);
+	if(status != 0) {
+		free_structures(env, lp);
+		return status;
+	}*/
+
+	//DEBUG.
 	/*status = CPXXwriteprob(env, lp, "1e.lp", nullptr);
 	if(status != 0)
 	{
