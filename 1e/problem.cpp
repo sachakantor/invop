@@ -207,9 +207,8 @@ int set_parameters(CPXENVptr env) {
 	/**********************/
 
 	/******* Logging ******/
-	/*CPXFILEptr logfile = nullptr;
-	logfile = CPXXfopen("BPGC.log", "a");
-	CPXXsetlogfile(env, logfile);*/
+	//CPXXsetlogfilename(env, "1e.log", "a");
+
 	/**********************/
 
 	return status;
@@ -684,12 +683,12 @@ int solve(Problem* prob, std::vector<std::vector<int>>& schedules, double& objva
 		return status;
 	}
 
-	/*std::cout << "Providing initial integer solution" << std::endl;
+	std::cout << "Providing initial integer solution" << std::endl;
 	status = initial_solution_mip(prob, env, lp);
 	if(status != 0) {
 		free_structures(env, lp);
 		return status;
-	}*/
+	}
 
 	//DEBUG.
 	/*status = CPXXwriteprob(env, lp, "1e.lp", nullptr);
