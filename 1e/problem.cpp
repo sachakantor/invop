@@ -2,6 +2,7 @@
 #include<iostream>
 #include<unordered_map>
 #include<vector>
+#include<thread>
 
 #include<problem.hpp>
 #include<ilcplex/cplexx.h>
@@ -112,7 +113,7 @@ int set_parameters(CPXENVptr env) {
 	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_FPHeur, -1);
 	if(status != 0) { return(status); }
 
-	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_LBHeur, CPX_ON);
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_LBHeur, CPX_OFF);
 	if(status != 0) { return(status); }
 	/**********************/
 
@@ -164,7 +165,7 @@ int set_parameters(CPXENVptr env) {
 	/*status = CPXXsetintparam(env, CPXPARAM_Parallel, 1);
 	if(status != 0) { return(status); }*/
 
-	status = CPXXsetintparam(env, CPXPARAM_Threads, 2);
+	status = CPXXsetintparam(env, CPXPARAM_Threads, std::thread::hardware_concurrency());
 	if(status != 0) { return status; }
 
 	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_NodeSelect, CPX_NODESEL_DFS);
@@ -173,8 +174,8 @@ int set_parameters(CPXENVptr env) {
 	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_NodeSelect, CPX_NODESEL_BESTEST_ALL;
 	if(status != 0) { return status; }
 
-	status = CPXXsetintparam(env, CPXPARAM_Emphasis_MIP, CPX_MIPEMPHASIS_OPTIMALITY);
-	//status = CPXXsetintparam(env, CPXPARAM_Emphasis_MIP, CPX_MIPEMPHASIS_BALANCED);
+	//status = CPXXsetintparam(env, CPXPARAM_Emphasis_MIP, CPX_MIPEMPHASIS_OPTIMALITY);
+	status = CPXXsetintparam(env, CPXPARAM_Emphasis_MIP, CPX_MIPEMPHASIS_BALANCED);
 	//status = CPXXsetintparam(env, CPXPARAM_Emphasis_MIP, CPX_MIPEMPHASIS_FEASIBILITY);
 	//status = CPXXsetintparam(env, CPXPARAM_Emphasis_MIP, CPX_MIPEMPHASIS_BESTBOUND);
 	//status = CPXXsetintparam(env, CPXPARAM_Emphasis_MIP, CPX_MIPEMPHASIS_HIDDENFEAS);
