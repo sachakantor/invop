@@ -65,130 +65,156 @@ void free_structures(CPXENVptr env, CPXLPptr lp) {
 int set_parameters(CPXENVptr env) {
 	int status;
 
-	status = CPXXsetintparam(env, CPX_PARAM_DATACHECK, CPX_ON);
+	status = CPXXsetintparam(env, CPXPARAM_Read_DataCheck, CPX_DATACHECK_ASSIST);
 	if(status != 0) { return status; }
 
 	/****** Output ******/
-	status = CPXXsetintparam(env, CPX_PARAM_SCRIND, CPX_ON);
+	status = CPXXsetintparam(env, CPXPARAM_ScreenOutput, CPX_ON);
 	if(status != 0) { return status; }
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_MIPDISPLAY, 5);
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Display, 5);
 	if(status != 0) { return(status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_MIPINTERVAL, 1 );
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Interval, 1 );
 	if(status != 0) { return(status); }*/
 	/**********************/
 
 	/****** Presolve ******/
-	status = CPXXsetintparam(env, CPX_PARAM_MIPCBREDLP, CPX_OFF);
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_CallbackReducedLP, CPX_OFF);
 	if(status != 0) { return status; }
 
-	/*// Ver bien por que sin esto no actualiza las duales.
-	// Este es el workaround que encontro Agus (Crack).
-	status = CPXXsetintparam(env, CPX_PARAM_REDUCE, CPX_PREREDUCE_NOPRIMALORDUAL);
+	status = CPXXsetintparam(env, CPXPARAM_Preprocessing_Presolve, CPX_OFF);
+	if(status != 0) { return status; }
+
+	/*status = CPXXsetintparam(env, CPXPARAM_Preprocessing_Reduce, CPX_PREREDUCE_NOPRIMALORDUAL);
 	if(status != 0) { return(status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_PRELINEAR, 0);
+	/*status = CPXXsetintparam(env, CPXPARAM_Preprocessing_Linear, 0);
 	if(status != 0) { return(status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_REDUCE, CPX_PREREDUCE_PRIMALONLY);
+	/*status = CPXXsetintparam(env, CPXPARAM_Preprocessing_Reduce, CPX_PREREDUCE_PRIMALONLY);
 	if(status != 0) { return(status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_REPEATPRESOLVE, 0);
-	if(status != 0) { return(status); }*/
+	status = CPXXsetintparam(env, CPXPARAM_Preprocessing_RepeatPresolve, 0);
+	if(status != 0) { return(status); }
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_PROBE, -1);
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Probe, -1);
 	if(status != 0) { return(status); }*/
 	/**********************/
 
 	/** CPLEX heuristics **/
-	status = CPXXsetintparam(env, CPX_PARAM_HEURFREQ, -1);
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_HeuristicFreq, -1);
 	if(status != 0) { return(status); }
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_RINSHEUR, -1);
-	if(status != 0) { return(status); }*/
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_RINSHeur, -1);
+	if(status != 0) { return(status); }
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_FPHEUR, -1);
-	if(status != 0) { return(status); }*/
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_FPHeur, -1);
+	if(status != 0) { return(status); }
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_LBHEUR, -1);
-	if(status != 0) { return(status); }*/
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_LBHeur, CPX_ON);
+	if(status != 0) { return(status); }
 	/**********************/
 
 	/***** CPLEX cuts *****/
-	/*status = CPXXsetintparam(env, CPX_PARAM_CUTPASS, 100);
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Limits_CutPasses, 100);
 	if(status != 0) { return(status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_CLIQUES, -1 );
-	if(status != 0) { return(status); }*/
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_Cliques, -1);
+	if(status != 0) { return (status); }
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_COVERS, -1 );
-	if(status != 0) { return(status); }*/
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_Covers, -1);
+	if(status != 0) { return (status); }
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_DISJCUTS, -1 );
-	if(status != 0) { return(status); }*/
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_Disjunctive, -1);
+	if(status != 0) { return (status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_FLOWCOVERS, -1 );
-	if(status != 0) { return(status); }*/
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_FlowCovers, -1);
+	if(status != 0) { return (status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_FLOWPATHS, -1 );
-	if(status != 0) { return(status); }*/
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_PathCut, -1);
+	if(status != 0) { return (status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_FRACCUTS, -1 );
-	if(status != 0) { return(status); }*/
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_Gomory, -1);
+	if(status != 0) { return (status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_GUBCOVERS, -1 );
-	if(status != 0) { return(status); }*/
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_GUBCovers, -1);
+	if(status != 0) { return (status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_MCFCUTS, -1 );
-	if(status != 0) { return(status); }*/
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_MCFCut, -1);
+	if(status != 0) { return (status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_IMPLBD, -1 );
-	if(status != 0) { return(status); }*/
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_Implied, -1);
+	if(status != 0) { return (status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_MIRCUTS, -1 );
-	if(status != 0) { return(status); }*/
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_MIRCut, -1);
+	if(status != 0) { return (status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_ZEROHALFCUTS, -1 );
-	if(status != 0) { return(status); }*/
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_ZeroHalfCut, -1);
+	if(status != 0) { return (status); }*/
 	/**********************/
 
 	/** Execution decisions **/
-	status = CPXXsetdblparam(env, CPX_PARAM_TILIM, 3600.0);
+	status = CPXXsetdblparam(env, CPXPARAM_TimeLimit, 3600.0);
 	if(status != 0) { return status; }
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_NODELIM, 1);
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_SubMIP_NodeLimit, 1);
 	if(status != 0) { return(status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_PARALLELMODE, 1);
+	/*status = CPXXsetintparam(env, CPXPARAM_Parallel, 1);
 	if(status != 0) { return(status); }*/
 
-	status = CPXXsetintparam(env, CPX_PARAM_THREADS, 8);
+	status = CPXXsetintparam(env, CPXPARAM_Threads, 2);
 	if(status != 0) { return status; }
 
-	//status = CPXXsetintparam(env, CPX_PARAM_NODESEL, CPX_NODESEL_DFS);
-	status = CPXXsetintparam(env, CPX_PARAM_NODESEL, CPX_NODESEL_BESTBOUND);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_NodeSelect, CPX_NODESEL_DFS);
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_NodeSelect, CPX_NODESEL_BESTBOUND);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_NodeSelect, CPX_NODESEL_BESTEST);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_NodeSelect, CPX_NODESEL_BESTEST_ALL;
 	if(status != 0) { return status; }
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_MIPEMPHASIS, CPX_MIPEMPHASIS_OPTIMALITY);
+	status = CPXXsetintparam(env, CPXPARAM_Emphasis_MIP, CPX_MIPEMPHASIS_OPTIMALITY);
+	//status = CPXXsetintparam(env, CPXPARAM_Emphasis_MIP, CPX_MIPEMPHASIS_BALANCED);
+	//status = CPXXsetintparam(env, CPXPARAM_Emphasis_MIP, CPX_MIPEMPHASIS_FEASIBILITY);
+	//status = CPXXsetintparam(env, CPXPARAM_Emphasis_MIP, CPX_MIPEMPHASIS_BESTBOUND);
+	//status = CPXXsetintparam(env, CPXPARAM_Emphasis_MIP, CPX_MIPEMPHASIS_HIDDENFEAS);
+	if(status != 0) { return(status); }
+
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_StartAlgorithm, CPX_ALG_AUTOMATIC);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_StartAlgorithm, CPX_ALG_PRIMAL);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_StartAlgorithm, CPX_ALG_DUAL);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_StartAlgorithm, CPX_ALG_NET);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_StartAlgorithm, CPX_ALG_BARRIER);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_StartAlgorithm, CPX_ALG_SIFTING);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_StartAlgorithm, CPX_ALG_CONCURRENT);
+	if(status != 0) { return(status); }
+
+	/*status = CPXXsetintparam(env, CPXPARAM_Barrier_Crossover, 0);
 	if(status != 0) { return(status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_STARTALG, CPX_ALG_PRIMAL); CHECKSTATUS;
-	if(status != 0) { return(status); }*/
+	status = CPXXsetintparam(env, CPXPARAM_LPMethod, CPX_ALG_AUTOMATIC);
+	//status = CPXXsetintparam(env, CPXPARAM_LPMethod, CPX_ALG_PRIMAL);
+	//status = CPXXsetintparam(env, CPXPARAM_LPMethod, CPX_ALG_DUAL);
+	//status = CPXXsetintparam(env, CPXPARAM_LPMethod, CPX_ALG_NET);
+	//status = CPXXsetintparam(env, CPXPARAM_LPMethod, CPX_ALG_BARRIER);
+	//status = CPXXsetintparam(env, CPXPARAM_LPMethod, CPX_ALG_SIFTING);
+	//status = CPXXsetintparam(env, CPXPARAM_LPMethod, CPX_ALG_CONCURRENT);
+	if(status != 0) { return(status); }
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_BARCROSSALG, -1); CHECKSTATUS;
-	if(status != 0) { return(status); }*/
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_VariableSelect, CPX_VARSEL_MININFEAS);
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_VariableSelect, CPX_VARSEL_DEFAULT);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_VariableSelect, CPX_VARSEL_MAXINFEAS);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_VariableSelect, CPX_VARSEL_PSEUDO);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_VariableSelect, CPX_VARSEL_STRONG);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_VariableSelect, CPX_VARSEL_PSEUDOREDUCED);
+	if(status != 0) { return(status); }
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_LPMETHOD, CPX_ALG_DUAL ); CHECKSTATUS;
-	if(status != 0) { return(status); }*/
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Order, CPX_ON);
+	if(status != 0) { return(status); }
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_VARSEL, CPX_VARSEL_MININFEAS); CHECKSTATUS;
-	if(status != 0) { return(status); }*/
-
-	/*status = CPXXsetintparam(env, CPX_PARAM_MIPORDIND, CPX_ON); CHECKSTATUS;
-	if(status != 0) { return(status); }*/
-
-	status = CPXXsetintparam(env, CPX_PARAM_MIPSEARCH, CPX_MIPSEARCH_TRADITIONAL);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Search, CPX_MIPSEARCH_AUTO);
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Search, CPX_MIPSEARCH_TRADITIONAL);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Search, CPX_MIPSEARCH_DYNAMIC);
 	if(status != 0) { return status; }
 	/**********************/
 
@@ -269,7 +295,7 @@ static int CPXPUBLIC subtour_constraint_generator(CPXCENVptr env,
 		std::vector<std::vector<int>> subtours;
 		std::unordered_map<int, int> client_subtour;
 
-		for(int i = 0; i < lazyconinfo->prob->N; ++i) {
+		for(int i = 0; i < lazyconinfo->prob->N+1; ++i) {
 			if(x[vertex_var_number(lazyconinfo->prob, day, i)] == 1.0 && client_subtour.count(i) == 0) {
 				subtours.emplace_back();
 				int cur_client = i;
@@ -284,7 +310,7 @@ static int CPXPUBLIC subtour_constraint_generator(CPXCENVptr env,
 										&& x[edge_var_number(lazyconinfo->prob, day, cur_client, j)] != 1.0)) { ++j; }
 					cur_client = j;
 
-					assert(0 < cur_client && cur_client <= lazyconinfo->prob->N);
+					assert(0 < cur_client && cur_client < lazyconinfo->prob->N+1);
 				} while(client_subtour.count(cur_client) == 0);
 			}
 		}
@@ -646,7 +672,11 @@ int solveMIP(const Problem* prob,
 		do {
 			schedules[day].push_back(cur_farm);
 			int j = 1;
-			while(j == cur_farm || vars[edge_var_number(prob, day, cur_farm, j)] != 1.0) ++j;
+			while(j == cur_farm || vars[edge_var_number(prob, day, cur_farm, j)] != 1.0) { ++j; }
+			/*while(j == cur_farm
+						|| (cur_farm < prob->N
+								&& j < prob->N
+								&& vars[edge_var_number(prob, day, cur_farm, j)] != 1.0)) { ++j; }*/
 			cur_farm = j;
 		} while(cur_farm != prob->N);
 		schedules[day].push_back(0);
@@ -683,12 +713,12 @@ int solve(Problem* prob, std::vector<std::vector<int>>& schedules, double& objva
 		return status;
 	}
 
-	std::cout << "Providing initial integer solution" << std::endl;
+	/*std::cout << "Providing initial integer solution" << std::endl;
 	status = initial_solution_mip(prob, env, lp);
 	if(status != 0) {
 		free_structures(env, lp);
 		return status;
-	}
+	}*/
 
 	//DEBUG.
 	/*status = CPXXwriteprob(env, lp, "1e.lp", nullptr);
