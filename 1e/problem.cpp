@@ -102,8 +102,8 @@ int set_parameters(CPXENVptr env) {
 	/**********************/
 
 	/** CPLEX heuristics **/
-	/*status = CPXXsetintparam(env, CPX_PARAM_HEURFREQ, -1);
-	if(status != 0) { return(status); }*/
+	status = CPXXsetintparam(env, CPX_PARAM_HEURFREQ, -1);
+	if(status != 0) { return(status); }
 
 	/*status = CPXXsetintparam(env, CPX_PARAM_RINSHEUR, -1);
 	if(status != 0) { return(status); }*/
@@ -265,7 +265,6 @@ static int CPXPUBLIC subtour_constraint_generator(CPXCENVptr env,
 
 	//Search for all (sub)tours in the integer solution
 	for(int day = 0; day < lazyconinfo->prob->schedules; ++day) {
-		//Detect all subtours
 		// TODO: estas dos estructuras de datos deberían ser una clase/struct con sus métodos que mantengan la info consistente
 		std::vector<std::vector<int>> subtours;
 		std::unordered_map<int, int> client_subtour;
@@ -281,6 +280,7 @@ static int CPXPUBLIC subtour_constraint_generator(CPXCENVptr env,
 					int j = 1;
 					while(j == cur_client
 								|| (cur_client < lazyconinfo->prob->N
+										&& j < lazyconinfo->prob->N
 										&& x[edge_var_number(lazyconinfo->prob, day, cur_client, j)] != 1.0)) { ++j; }
 					cur_client = j;
 
@@ -326,7 +326,7 @@ static int CPXPUBLIC subtour_constraint_generator(CPXCENVptr env,
 		}
 	}
 
-	return (status);
+	return status;
 }
 
 int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp) {
