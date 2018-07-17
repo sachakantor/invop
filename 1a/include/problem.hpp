@@ -55,14 +55,6 @@ private:
 	const int oil_use_switch_base_offset;
 };
 
-/*struct lazy_constrain_info
-{
-	CPXLPptr lp;
-	Problem* prob;
-
-	lazy_constrain_info(CPXLPptr lp, Problem* prob);
-};*/
-
 int initialize_structures(CPXENVptr& env, CPXLPptr& lp);
 void free_structures(CPXENVptr env, CPXLPptr lp);
 int set_parameters(CPXENVptr env);

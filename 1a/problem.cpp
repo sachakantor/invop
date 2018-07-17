@@ -2,6 +2,7 @@
 #include<iostream>
 #include<limits>
 #include<unordered_map>
+#include<thread>
 #include<vector>
 
 #include<problem.hpp>
@@ -55,9 +56,6 @@ int mip_vars::oil_use_switch_total() const {
 }
 
 /**********************/
-//lazy_constrain_info::lazy_constrain_info(CPXLPptr lp, Problem* prob) : lp(lp), prob(prob) {}
-
-/**********************/
 int initialize_structures(CPXENVptr& env, CPXLPptr& lp) {
 
 	int status = 0;
@@ -108,151 +106,167 @@ void free_structures(CPXENVptr env, CPXLPptr lp) {
 int set_parameters(CPXENVptr env) {
 	int status;
 
-	status = CPXXsetintparam(env, CPX_PARAM_DATACHECK, CPX_ON);
+	status = CPXXsetintparam(env, CPXPARAM_Read_DataCheck, CPX_DATACHECK_ASSIST);
 	if(status != 0) { return status; }
 
 	/****** Output ******/
-	status = CPXXsetintparam(env, CPX_PARAM_SCRIND, CPX_ON);
+	status = CPXXsetintparam(env, CPXPARAM_ScreenOutput, CPX_ON);
 	if(status != 0) { return status; }
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_MIPDISPLAY, 5);
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Display, 5);
 	if(status != 0) { return(status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_MIPINTERVAL, 1 );
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Interval, 1 );
 	if(status != 0) { return(status); }*/
 	/**********************/
 
 	/****** Presolve ******/
-	status = CPXXsetintparam(env, CPX_PARAM_MIPCBREDLP, CPX_OFF);
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_CallbackReducedLP, CPX_OFF);
 	if(status != 0) { return status; }
 
-	/*// Ver bien por que sin esto no actualiza las duales.
-	// Este es el workaround que encontro Agus (Crack).
-	status = CPXXsetintparam(env, CPX_PARAM_REDUCE, CPX_PREREDUCE_NOPRIMALORDUAL);
+	status = CPXXsetintparam(env, CPXPARAM_Preprocessing_Presolve, CPX_ON);
+	if(status != 0) { return status; }
+
+	/*status = CPXXsetintparam(env, CPXPARAM_Preprocessing_Reduce, CPX_PREREDUCE_NOPRIMALORDUAL);
 	if(status != 0) { return(status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_PRELINEAR, 0);
+	/*status = CPXXsetintparam(env, CPXPARAM_Preprocessing_Linear, 0);
 	if(status != 0) { return(status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_REDUCE, CPX_PREREDUCE_PRIMALONLY);
+	/*status = CPXXsetintparam(env, CPXPARAM_Preprocessing_Reduce, CPX_PREREDUCE_PRIMALONLY);
 	if(status != 0) { return(status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_REPEATPRESOLVE, 0);
+	/*status = CPXXsetintparam(env, CPXPARAM_Preprocessing_RepeatPresolve, 0);
 	if(status != 0) { return(status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_PROBE, -1);
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Probe, -1);
 	if(status != 0) { return(status); }*/
 	/**********************/
 
 	/** CPLEX heuristics **/
-	/*status = CPXXsetintparam(env, CPX_PARAM_HEURFREQ, -1);
-	if(status != 0) { return(status); }*/
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_HeuristicFreq, -1);
+	if(status != 0) { return(status); }
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_RINSHEUR, -1);
-	if(status != 0) { return(status); }*/
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_RINSHeur, 0);
+	if(status != 0) { return(status); }
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_FPHEUR, -1);
-	if(status != 0) { return(status); }*/
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_FPHeur, 0);
+	if(status != 0) { return(status); }
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_LBHEUR, -1);
-	if(status != 0) { return(status); }*/
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_LBHeur, CPX_ON);
+	if(status != 0) { return(status); }
 	/**********************/
 
 	/***** CPLEX cuts *****/
-	/*status = CPXXsetintparam(env, CPX_PARAM_CUTPASS, 100);
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Limits_CutPasses, 100);
 	if(status != 0) { return(status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_CLIQUES, -1 );
-	if(status != 0) { return(status); }*/
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_Cliques, 0);
+	if(status != 0) { return (status); }
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_COVERS, -1 );
-	if(status != 0) { return(status); }*/
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_Covers, 0);
+	if(status != 0) { return (status); }
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_DISJCUTS, -1 );
-	if(status != 0) { return(status); }*/
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_Disjunctive, -1);
+	if(status != 0) { return (status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_FLOWCOVERS, -1 );
-	if(status != 0) { return(status); }*/
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_FlowCovers, -1);
+	if(status != 0) { return (status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_FLOWPATHS, -1 );
-	if(status != 0) { return(status); }*/
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_PathCut, -1);
+	if(status != 0) { return (status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_FRACCUTS, -1 );
-	if(status != 0) { return(status); }*/
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_Gomory, -1);
+	if(status != 0) { return (status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_GUBCOVERS, -1 );
-	if(status != 0) { return(status); }*/
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_GUBCovers, -1);
+	if(status != 0) { return (status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_MCFCUTS, -1 );
-	if(status != 0) { return(status); }*/
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_MCFCut, -1);
+	if(status != 0) { return (status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_IMPLBD, -1 );
-	if(status != 0) { return(status); }*/
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_Implied, -1);
+	if(status != 0) { return (status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_MIRCUTS, -1 );
-	if(status != 0) { return(status); }*/
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_MIRCut, -1);
+	if(status != 0) { return (status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_ZEROHALFCUTS, -1 );
-	if(status != 0) { return(status); }*/
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_ZeroHalfCut, -1);
+	if(status != 0) { return (status); }*/
 	/**********************/
 
 	/** Execution decisions **/
-	status = CPXXsetdblparam(env, CPX_PARAM_TILIM, 3600.0);
+	status = CPXXsetdblparam(env, CPXPARAM_TimeLimit, 3600.0);
 	if(status != 0) { return status; }
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_NODELIM, 1);
+	/*status = CPXXsetintparam(env, CPXPARAM_MIP_SubMIP_NodeLimit, 1);
 	if(status != 0) { return(status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_PARALLELMODE, 1);
+	/*status = CPXXsetintparam(env, CPXPARAM_Parallel, 1);
 	if(status != 0) { return(status); }*/
 
-	status = CPXXsetintparam(env, CPX_PARAM_THREADS, 8);
+	status = CPXXsetintparam(env, CPXPARAM_Threads, std::thread::hardware_concurrency());
 	if(status != 0) { return status; }
 
-	//status = CPXXsetintparam(env, CPX_PARAM_NODESEL, CPX_NODESEL_DFS);
-	status = CPXXsetintparam(env, CPX_PARAM_NODESEL, CPX_NODESEL_BESTBOUND);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_NodeSelect, CPX_NODESEL_DFS);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_NodeSelect, CPX_NODESEL_BESTBOUND);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_NodeSelect, CPX_NODESEL_BESTEST);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_NodeSelect, CPX_NODESEL_BESTEST_ALT);
+	//if(status != 0) { return status; }
+
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Branch, -1);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Branch, 0);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Branch, 1);
 	if(status != 0) { return status; }
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_MIPEMPHASIS, CPX_MIPEMPHASIS_OPTIMALITY);
+	//status = CPXXsetintparam(env, CPXPARAM_Emphasis_MIP, CPX_MIPEMPHASIS_OPTIMALITY);
+	status = CPXXsetintparam(env, CPXPARAM_Emphasis_MIP, CPX_MIPEMPHASIS_BALANCED);
+	//status = CPXXsetintparam(env, CPXPARAM_Emphasis_MIP, CPX_MIPEMPHASIS_FEASIBILITY);
+	//status = CPXXsetintparam(env, CPXPARAM_Emphasis_MIP, CPX_MIPEMPHASIS_BESTBOUND);
+	//status = CPXXsetintparam(env, CPXPARAM_Emphasis_MIP, CPX_MIPEMPHASIS_HIDDENFEAS);
+	if(status != 0) { return(status); }
+
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_StartAlgorithm, CPX_ALG_AUTOMATIC);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_StartAlgorithm, CPX_ALG_PRIMAL);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_StartAlgorithm, CPX_ALG_DUAL);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_StartAlgorithm, CPX_ALG_NET);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_StartAlgorithm, CPX_ALG_BARRIER);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_StartAlgorithm, CPX_ALG_SIFTING);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_StartAlgorithm, CPX_ALG_CONCURRENT);
+	if(status != 0) { return(status); }
+
+	/*status = CPXXsetintparam(env, CPXPARAM_Barrier_Crossover, 0);
 	if(status != 0) { return(status); }*/
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_STARTALG, CPX_ALG_PRIMAL); CHECKSTATUS;
-	if(status != 0) { return(status); }*/
+	status = CPXXsetintparam(env, CPXPARAM_LPMethod, CPX_ALG_AUTOMATIC);
+	//status = CPXXsetintparam(env, CPXPARAM_LPMethod, CPX_ALG_PRIMAL);
+	//status = CPXXsetintparam(env, CPXPARAM_LPMethod, CPX_ALG_DUAL);
+	//status = CPXXsetintparam(env, CPXPARAM_LPMethod, CPX_ALG_NET);
+	//status = CPXXsetintparam(env, CPXPARAM_LPMethod, CPX_ALG_BARRIER);
+	//status = CPXXsetintparam(env, CPXPARAM_LPMethod, CPX_ALG_SIFTING);
+	//status = CPXXsetintparam(env, CPXPARAM_LPMethod, CPX_ALG_CONCURRENT);
+	if(status != 0) { return(status); }
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_BARCROSSALG, -1); CHECKSTATUS;
-	if(status != 0) { return(status); }*/
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_VariableSelect, CPX_VARSEL_MININFEAS);
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_VariableSelect, CPX_VARSEL_DEFAULT);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_VariableSelect, CPX_VARSEL_MAXINFEAS);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_VariableSelect, CPX_VARSEL_PSEUDO);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_VariableSelect, CPX_VARSEL_STRONG);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_VariableSelect, CPX_VARSEL_PSEUDOREDUCED);
+	if(status != 0) { return(status); }
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_LPMETHOD, CPX_ALG_DUAL ); CHECKSTATUS;
-	if(status != 0) { return(status); }*/
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Order, CPX_ON);
+	if(status != 0) { return(status); }
 
-	/*status = CPXXsetintparam(env, CPX_PARAM_VARSEL, CPX_VARSEL_MININFEAS); CHECKSTATUS;
-	if(status != 0) { return(status); }*/
-
-	/*status = CPXXsetintparam(env, CPX_PARAM_MIPORDIND, CPX_ON); CHECKSTATUS;
-	if(status != 0) { return(status); }*/
-
-	status = CPXXsetintparam(env, CPX_PARAM_MIPSEARCH, CPX_MIPSEARCH_TRADITIONAL);
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Search, CPX_MIPSEARCH_AUTO);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Search, CPX_MIPSEARCH_TRADITIONAL);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Search, CPX_MIPSEARCH_DYNAMIC);
 	if(status != 0) { return status; }
-	/**********************/
-
-	/** Lazy Constraints **/
-	/* Assure linear mappings between the presolved and original models */
-	/*status = CPXXsetintparam(env, CPXPARAM_Preprocessing_Linear, CPX_OFF);
-	if(status != 0) { return status; }*/
-
-	/* Turn on traditional search for use with control callbacks */
-	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Search, CPX_MIPSEARCH_TRADITIONAL); //TODO: mepa que se solapa con otra
-	if(status != 0) { return status; }*/
-
-	/* Let MIP callbacks work on the original model */
-	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_CallbackReducedLP, CPX_OFF);
-	if(status != 0) { return status; }*/
 	/**********************/
 
 	/******* Logging ******/
-	/*CPXFILEptr logfile = nullptr;
-	logfile = CPXXfopen("BPGC.log", "a");
-	CPXXsetlogfile(env, logfile);*/
+	//CPXXsetlogfilename(env, "1a.log", "a");
+
 	/**********************/
 
 	return status;
@@ -276,29 +290,29 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp) {
 		for(int month = 0; month < prob->M; ++month) {
 			int refined_var_num = vars.var_num(mip_vars::var_type::refined, oil, month);
 			obj_var_coefs[refined_var_num] = prob->oil_profit_per_month[oil][month];
-			lower_bounds[refined_var_num] = 0.0;
-			upper_bounds[refined_var_num] = std::numeric_limits<double>::max();
+			//lower_bounds[refined_var_num] = 0.0;
+			//upper_bounds[refined_var_num] = std::numeric_limits<double>::max();
 			column_types[refined_var_num] = 'I';
 			def_vars++;
 
 			int storage_var_num = vars.var_num(mip_vars::var_type::storage, oil, month);
 			obj_var_coefs[storage_var_num] = -prob->oil_storage_cost_per_month[oil][month];
-			lower_bounds[storage_var_num] = 0.0;
-			upper_bounds[storage_var_num] = std::numeric_limits<double>::max();
+			//lower_bounds[storage_var_num] = 0.0;
+			//upper_bounds[storage_var_num] = std::numeric_limits<double>::max();
 			column_types[storage_var_num] = 'I';
 			def_vars++;
 
 			int buy_var_num = vars.var_num(mip_vars::var_type::buy, oil, month);
 			obj_var_coefs[buy_var_num] = -prob->oil_buy_cost_per_month[oil][month];
-			lower_bounds[buy_var_num] = 0.0;
-			upper_bounds[buy_var_num] = std::numeric_limits<double>::max();
+			//lower_bounds[buy_var_num] = 0.0;
+			//upper_bounds[buy_var_num] = std::numeric_limits<double>::max();
 			column_types[buy_var_num] = 'I';
 			def_vars++;
 
 			int oil_switch_var_num = vars.var_num(mip_vars::var_type::oil_switch, oil, month);
 			obj_var_coefs[oil_switch_var_num] = 0.0;
-			lower_bounds[oil_switch_var_num] = 0.0;
-			upper_bounds[oil_switch_var_num] = 1.0;
+			//lower_bounds[oil_switch_var_num] = 0.0;
+			//upper_bounds[oil_switch_var_num] = 1.0;
 			column_types[oil_switch_var_num] = 'B';
 			def_vars++;
 		}
@@ -306,7 +320,7 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp) {
 
 	//Add variables defs/cols to lp
 	assert(def_vars == vars.total());
-	status = CPXXnewcols(env, lp, def_vars, obj_var_coefs, lower_bounds, upper_bounds, column_types, nullptr);
+	status = CPXXnewcols(env, lp, def_vars, obj_var_coefs, nullptr, nullptr, column_types, nullptr);
 	if(status != 0) {
 		std::cerr << "Variable definitions/Columns could not be defined." << std::endl;
 		return status;
@@ -459,7 +473,8 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp) {
 			//Oil switch
 			rhs[0] = 0.0;
 			sense[0] = 'G';
-			rmatval[0] = std::numeric_limits<double>::max();
+			//rmatval[0] = std::numeric_limits<double>::max();
+			rmatval[0] = std::max(prob->max_refined_per_month_NV, prob->max_refined_per_month_V);
 			rmatind[0] = vars.var_num(mip_vars::var_type::oil_switch, oil, month);
 
 			rmatval[1] = -1.0;
@@ -543,31 +558,6 @@ int initialize_mip(Problem* prob, CPXENVptr env, CPXLPptr lp) {
 			}
 		}
 	}
-
-	// Este sector de codigo permite proveerle a CPLEX una solucion factible de entrada
-	/*status = CPXsetintparam(env, CPX_PARAM_ADVIND, 1);
-	if(status != 0)exit(-1);
-
-	int beg[1] = {0};
-	int nzcnt = prob->N+prob->bestObj;
-	int* varindices = (int*) malloc(sizeof(int)*nzcnt);
-	for(int i = 0; i < prob->N; i++)
-	{
-		varindices[i] = i*prob->bestObj+prob->colores[i];
-	}
-	for(int i = 0; i < prob->bestObj; i++)
-	{
-		varindices[i+prob->N] = i+prob->N*prob->bestObj;
-	}
-
-
-	double* values = (double*) malloc(sizeof(double)*nzcnt);
-	for(int i = 0; i < nzcnt; ++i)values[i] = 1.0;
-	int effortlevel[1] = {CPX_MIPSTART_AUTO};
-	status = CPXaddmipstarts(env, lp, 1, nzcnt, beg, varindices, values, effortlevel, NULL);
-
-	free(varindices);
-	free(values);*/
 
 	delete[] obj_var_coefs;
 	delete[] lower_bounds;
