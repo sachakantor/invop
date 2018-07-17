@@ -113,8 +113,8 @@ int set_parameters(CPXENVptr env) {
 	status = CPXXsetintparam(env, CPXPARAM_ScreenOutput, CPX_ON);
 	if(status != 0) { return status; }
 
-	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Display, 5);
-	if(status != 0) { return(status); }*/
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Display, 5);
+	if(status != 0) { return(status); }
 
 	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Interval, 1 );
 	if(status != 0) { return(status); }*/
@@ -144,7 +144,7 @@ int set_parameters(CPXENVptr env) {
 	/**********************/
 
 	/** CPLEX heuristics **/
-	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_HeuristicFreq, -1);
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_HeuristicFreq, 0);
 	if(status != 0) { return(status); }
 
 	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_RINSHeur, 0);
@@ -208,14 +208,14 @@ int set_parameters(CPXENVptr env) {
 	status = CPXXsetintparam(env, CPXPARAM_Threads, std::thread::hardware_concurrency());
 	if(status != 0) { return status; }
 
-	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_NodeSelect, CPX_NODESEL_DFS);
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_NodeSelect, CPX_NODESEL_DFS);
 	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_NodeSelect, CPX_NODESEL_BESTBOUND);
 	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_NodeSelect, CPX_NODESEL_BESTEST);
 	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_NodeSelect, CPX_NODESEL_BESTEST_ALT);
-	//if(status != 0) { return status; }
+	if(status != 0) { return status; }
 
 	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Branch, -1);
-	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Branch, 0);
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Branch, 0);
 	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Branch, 1);
 	if(status != 0) { return status; }
 
