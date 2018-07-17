@@ -1,0 +1,71 @@
+Root node (sin heurísticas)
+=========
+Tipo | fobj | ticks | mean secs | stdev
+Nada | 118.7247 | 12.85 ticks | 0.0364 secs | 0.01494231332 
+Clique | 118.7247 | 13.04 ticks | 0,0311 secs | 0,003450955072
+Cover | 118.7247 | 26.89 ticks | 0,0716 secs | 0,01744949422
+Clique + Cover | 118.7247 | 27.15 ticks | 0,0657 secs | 0,01793675759
+Preproc | 118.7247 | 38.08 ticks | 0,1446 secs	| 0,1446 secs | 0,03500129868
+Preproc + clique | 118.7247 | 38.44 ticks | 0,1154 secs |	0,03112113836
+Preproc + cover | 118.7247 | 41.31 ticks | 0,1444 secs | 0,04267140125
+Preproc + clique + cover | 118.7247 | 41.67 ticks | 0,0909 secs |	0,005702205846
+
+En ticks deterministicos, claramente conviene no hacer nada, muy cercano a aplicar cortes clique. En tiempos no deterministicos, hay muy poca diferencia entre el promedio de ambas opciones que son aprox la mitad de aplicar cortes clique y clique+cover. Ya aplicar el preproc con/sin los cortes nos lleva los tiempos a más de 4 veces más, y en todos los casos la fobj es la misma.
+
+El desvío estándar es un orden de magnitud menor en los casos de de cliq y preproc+cliq+cover, siendo el primero la mitad del segundo.
+
+Elegimos para continuar experimentando "Nada" por ser el mejor en tiempos deterministicos, Clique por ser casi tan bueno y mejor en tiempos no determinísticos en un aprox 50% (con el stdev mínimo) y el Preproc+Cliq+Cov por ser el mejor en teimpos no determinísticos y tener el menor stdev de aquellos que incluyen preprocesamiento.
+
+
+Branch&Cut NodeSelect
+=====================
+Tipo | fobj | ticks | mean secs | stdev | nodes
+Nada_DFS | 121.199 | 89.29 | 0,2033 | 0,01333749935 | 323
+Nada_BB | 121.199 | 109.96 | 0,3778 | 0,111142642 | 603
+Nada_BEST | 121.199 | 80.68 | 0,2784 | 0,08527697002 | 351
+Nada_BESTA | 121.199 | 82.00 | 0,192 | 0,03381470602 | 291
+Cliq_DFS | 121.199 | 89.49 | 0,2999 | 0,1441904955 | 323
+Cliq_BB | 121.199 | 110.15 | 0,2505 | 0,01844319699 | 603
+Cliq_BEST | 121.199 | 80.87 | 0,1839 | 0,008396127053 | 351
+Cliq_BESTA | 121.199 | 82.20 | 0,3133	| 0,1143188435 | 291
+Pre+Cliq+Cov_DFS | 121.199 | 88.19 | 0,275 | 0,1181550086 | 168
+Pre+Cliq+Cov_BB | 121.199 | 88.56 | 0,255	| 0,07120180454 | 172
+Pre+Cliq+Cov_BEST | 121.199 | 89.40 | 0,3685 | 0,120036821 | 172
+Pre+Cliq+Cov_BESTA | 121.199 | 88.66 | 0,2584 | 0,09651210214 | 190
+
+En tiempos deterministicos los mejores, por poca diferencia, son: Nada_BEST, Cliq_BEST y Cliq_BESTA. A su vez, se consiguieron los peores ticks con Cliq_BB y Nada_BB. Interesantemente, esta información es no parece tenere alguna covarianza en la instancia con a la cantidad de nodos resueltos. Los peores resolvieron 65 nodos, mientras Cliq_BESTA resolvió 115 (Nada_BEST y Cliq_BEST resolvieron 66). 
+
+En el sentido de los nodos resueltos, salvo los casos {Cliq,Nada}_{BESTA,DFS} (que resolvieron 115 y 91 respect), se resolvieron cantidades similares de nodos. Interesante es que el caso Pre+Cliq+Cov para justamente BESTA y DFS resolvió menos nodos que el resto (47 y 56, siendo la primera la menor cantidad de nodos). Se vé que bien el Pre o Cov agregan al BC cotas que permite procesar menos nodos.
+
+Ahora bien, respecto del tiempo real/no determinístico, Nada_BESTA y Cliq_BEST consiguieron de los mejores tiempos promedio, este último teniendo el menor desvío (y el primero teniendo un desvío bajo relativo a los demás desvíos). 
+
+En este sentido, teniendo casos solapados para tanto tiempo determinístico como no deterministico (con casi extremos respecto de la cantidad de nodos resueltos, lo que es interesante ver como puede afectar de aquí en adelante), consideramos que conviene seguir experimentando con ellos: Nada_BESTA y Cliq_BEST. En la misma línea, es interesante como se modificará el comportamiento con los demás parámetros del caso que menos nodos ha de resolver: Pre+Cliq+Cover_DFS.
+
+
+Branch&Cut Branching Dir 
+========================
+Tipo | fobj | ticks | mean secs | stdev | nodes
+Nada_BESTA_DOWN | 121.199 | 99.40 | 0,2174 | 0,01446835628 | 485
+Nada_BESTA_UP | 121.199 | 67.73 | 0,1484 | 0,007617099318 | 248
+Cliq_BEST_DOWN | 121.199 | 81.77 | 0,3054 | 0,1040339882 | 457
+Cliq_BEST_UP | 121.199 | 69.75 | 0,2796	| 0,105781555 | 249
+Pre+Cliq+Cov_DFS_DOWN | 121.199 | 99.93 | 0,212	| 0,0340528407 | 214
+Pre+Cliq+Cov_DFS_UP | 121.199 | 62.73 | 0,1282 | 0,008333939372 | 21 ->Mejor
+
+Inesperadamente, tanto en ticks como en secs, la combinación Pre+Cliq+Cov_DFS_UP  es la más rápida, y resuelve muy pocos nodos (aunque haya dos combinaciones que resuelven 2 nodos menos). Más aún, en todos los casos, comparando contra la elección automática de la dirección hecha hasta ahora, forzar DOWN nos da tiempos ligeramentes peores (en todas las características siendo analizadas), y UP al contrario nos da tiempos mejores (%). Consideramos entonces que conviene seguir el estudio sólo con el branch direction UP.
+
+
+Heuristics
+==========
+Tipo | fobj | ticks | mean secs | stdev | nodes
+Nada_BESTA_UP | 121.199 | 204.78 | 0,5029 | 0,07557583655 | 151
+Cliq_BEST_UP | 121.199 | 204.47 | 0,5585 | 0,1674670177 | 169
+Pre+Cliq+Cov_DFS_UP | 121.199 | 214.07 | 0,5329 | 0,01492709556 | 21
+
+
+Sol Inicial
+===========
+Tipo | fobj | ticks | mean secs | stdev | nodes
+Nada_BESTA_UP | 121.199 | 68.26 | 0,1533 | 0,01073604332 | 248
+Cliq_BEST_UP | 121.199 | 70.28 | 0,1532	| 0,007369058984 | 249
+Pre+Cliq+Cov_DFS_UP | 63.45 | 0,1311 | 0,0049020713 | 21

@@ -84,7 +84,7 @@ int set_parameters(CPXENVptr env) {
 	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_CallbackReducedLP, CPX_OFF);
 	if(status != 0) { return status; }
 
-	status = CPXXsetintparam(env, CPXPARAM_Preprocessing_Presolve, CPX_OFF);
+	status = CPXXsetintparam(env, CPXPARAM_Preprocessing_Presolve, CPX_ON);
 	if(status != 0) { return status; }
 
 	/*status = CPXXsetintparam(env, CPXPARAM_Preprocessing_Reduce, CPX_PREREDUCE_NOPRIMALORDUAL);
@@ -96,8 +96,8 @@ int set_parameters(CPXENVptr env) {
 	/*status = CPXXsetintparam(env, CPXPARAM_Preprocessing_Reduce, CPX_PREREDUCE_PRIMALONLY);
 	if(status != 0) { return(status); }*/
 
-	status = CPXXsetintparam(env, CPXPARAM_Preprocessing_RepeatPresolve, 0);
-	if(status != 0) { return(status); }
+	/*status = CPXXsetintparam(env, CPXPARAM_Preprocessing_RepeatPresolve, 0);
+	if(status != 0) { return(status); }*/
 
 	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Probe, -1);
 	if(status != 0) { return(status); }*/
@@ -121,10 +121,10 @@ int set_parameters(CPXENVptr env) {
 	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Limits_CutPasses, 100);
 	if(status != 0) { return(status); }*/
 
-	status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_Cliques, -1);
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_Cliques, 0);
 	if(status != 0) { return (status); }
 
-	status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_Covers, -1);
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_Covers, 0);
 	if(status != 0) { return (status); }
 
 	/*status = CPXXsetintparam(env, CPXPARAM_MIP_Cuts_Disjunctive, -1);
@@ -168,10 +168,15 @@ int set_parameters(CPXENVptr env) {
 	status = CPXXsetintparam(env, CPXPARAM_Threads, std::thread::hardware_concurrency());
 	if(status != 0) { return status; }
 
-	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_NodeSelect, CPX_NODESEL_DFS);
-	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_NodeSelect, CPX_NODESEL_BESTBOUND);
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_NodeSelect, CPX_NODESEL_DFS);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_NodeSelect, CPX_NODESEL_BESTBOUND);
 	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_NodeSelect, CPX_NODESEL_BESTEST);
-	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_NodeSelect, CPX_NODESEL_BESTEST_ALL;
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_NodeSelect, CPX_NODESEL_BESTEST_ALT);
+	if(status != 0) { return status; }
+
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Branch, -1);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Branch, 0);
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Branch, 1);
 	if(status != 0) { return status; }
 
 	//status = CPXXsetintparam(env, CPXPARAM_Emphasis_MIP, CPX_MIPEMPHASIS_OPTIMALITY);
@@ -213,8 +218,8 @@ int set_parameters(CPXENVptr env) {
 	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Order, CPX_ON);
 	if(status != 0) { return(status); }
 
-	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Search, CPX_MIPSEARCH_AUTO);
-	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Search, CPX_MIPSEARCH_TRADITIONAL);
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Search, CPX_MIPSEARCH_AUTO);
+	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Search, CPX_MIPSEARCH_TRADITIONAL);
 	//status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Search, CPX_MIPSEARCH_DYNAMIC);
 	if(status != 0) { return status; }
 	/**********************/
@@ -225,7 +230,7 @@ int set_parameters(CPXENVptr env) {
 	if(status != 0) { return status; }
 
 	/* Turn on traditional search for use with control callbacks */
-	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Search, CPX_MIPSEARCH_TRADITIONAL); //TODO: mepa que se solapa con otra
+	status = CPXXsetintparam(env, CPXPARAM_MIP_Strategy_Search, CPX_MIPSEARCH_TRADITIONAL);
 	if(status != 0) { return status; }
 
 	/* Let MIP callbacks work on the original model */
