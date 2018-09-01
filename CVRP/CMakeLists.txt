@@ -1,4 +1,4 @@
-project(invop-1e)
+project(cvrp)
 
 # Compiler
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CPLEX_CXX_FLAGS} ${CPLEX_ILOCPLEX_CXX_FLAGS}")
@@ -20,7 +20,7 @@ link_directories(${CPLEX_LIBRARY}
 
 # Targets
 set(SOURCE_FILES main.cpp)
-add_executable(1e ${SOURCE_FILES})
+add_executable(cvrp ${SOURCE_FILES})
 add_executable(coordinates_to_distances coordinates_to_distances.cpp)
 
 # Because CLion can't detect .hpp who includes a .cpp (mimic for
@@ -36,7 +36,7 @@ add_library(1elp INTERFACE)
 target_sources(1elp INTERFACE
 							 "${INCLUDE_DIR}/problem.hpp"
 							 "${CMAKE_CURRENT_SOURCE_DIR}/problem.cpp")
-target_link_libraries(1e
+target_link_libraries(cvrp
 											1elp
 											${CMAKE_THREAD_LIBS_INIT}
 											${CMAKE_DL_LIBS}

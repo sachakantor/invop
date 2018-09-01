@@ -1,4 +1,4 @@
-project(invop-1a)
+project(food_manufacture)
 
 # Compiler
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CPLEX_CXX_FLAGS} ${CPLEX_ILOCPLEX_CXX_FLAGS}")
@@ -20,7 +20,7 @@ link_directories(${CPLEX_LIBRARY}
 
 # Targets
 set(SOURCE_FILES main.cpp)
-add_executable(1a ${SOURCE_FILES})
+add_executable(food_manufacture ${SOURCE_FILES})
 
 # Because CLion can't detect .hpp who includes a .cpp (mimic for
 # separated declaration and implementation for template classes),
@@ -29,7 +29,7 @@ add_library(1alp INTERFACE)
 target_sources(1alp INTERFACE
 							 "${INCLUDE_DIR}/problem.hpp"
 							 "${CMAKE_CURRENT_SOURCE_DIR}/problem.cpp")
-target_link_libraries(1a
+target_link_libraries(food_manufacture
 											1alp
 											${CMAKE_THREAD_LIBS_INIT}
 											${CMAKE_DL_LIBS}
